@@ -1,6 +1,6 @@
 <template>
   <div class="dashboard">
-    <TopNavbar @settings="handleSettings"/>
+
 
     <div class="content">
 
@@ -41,7 +41,6 @@
     </div>
 
   </div>
-  <NavBar/>
 </template>
 
 <script setup>
