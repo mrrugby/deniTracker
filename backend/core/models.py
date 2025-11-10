@@ -50,11 +50,14 @@ class Item(models.Model):
     
 class PriceHistory(models.Model):
     """track price changes for audit"""
+    
     item = models.ForeignKey(Item, on_delete=models.CASCADE, related_name='price_history') 
     old_price = models.DecimalField(max_digits=10, decimal_places=2)
     new_price = models.DecimalField(max_digits=10, decimal_places=2)
     changed_at = models.DateTimeField(auto_now_add=True)
-    
+    class Meta:
+        verbose_name_plural = 'price history' 
+        
     def __str__(self):
         return f"{self.item.name}: {self.old_price} → {self.new_price} on {self.changed_at.date()}"
     

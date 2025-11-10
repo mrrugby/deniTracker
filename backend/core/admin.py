@@ -6,9 +6,8 @@ from django.utils.html import format_html
 class PriceHistoryInLine(admin.TabularInline):
     model =PriceHistory
     extra = 0
-    readonly_fields = ("old_price", "new_price", "chnaged_at")
+    readonly_fields = ("old_price", "new_price", "changed_at")
     can_delete = False
-    verbose_name_plural = "price change history"
     
     def has_add_permission(self, request, obj=None):
         return False

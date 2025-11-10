@@ -9,33 +9,19 @@ class ItemSerializer(serializers.ModelSerializer):
 
 
 class TransactionItemSerializer(serializers.ModelSerializer):
-    item_name = serializers.ReadOnlyField(source="item.name")
-    item_price = serializers.ReadOnlyField(source="item.price")
-    total_price = serializers.ReadOnlyField()
-
+    item_name = serializers.CharField(source="item.name", read_only=True)
+    subtotal = serializers.DecimalField(
+        max_digits=10, decimal_places=2, source="total_price", read_only=True
+    )
     class Meta:
         model = TransactionItem
-        fields = [
-            "id",
-            "item",
-            "item_name",
-            "item_price",
-            "quantity",
-            "unit_price",
-            "total_price",
-        ]
-        read_only_fields = ("unit_price", "total_price")
-
-    def create(self, validated_data):
-        if not validated_data.get("unit_price"):
-            validated_data["unit_price"] = validated_data["item"].price
-        return super().create(validated_data)
+        fields = ["id", "item", "item_name", "unit_price", "quantity", "subtotal"]
 
 
 class TransactionSerializer(serializers.ModelSerializer):
-    items = TransactionItemSerializer(many=True, required=False)
-    customer_name = serializers.ReadOnlyField(source="customer.name")
-    total_amount = serializers.ReadOnlyField()
+    items = TransactionItemSerializer(many=True, read_only=True)
+    customer_name = serializers.CharField(source="customer.name", read_only=True)
+    
 
     class Meta:
         model = Transaction
@@ -44,27 +30,17 @@ class TransactionSerializer(serializers.ModelSerializer):
             "customer",
             "customer_name",
             "transaction_type",
-            "date",
             "amount",
             "items",
-            "total_amount",
+            "date",
         ]
 
-    def create(self, validated_data):
-        """Handle nested creation for debts"""
-        items_data = validated_data.pop("items", [])
-        transaction = Transaction.objects.create(**validated_data)
-
-        if transaction.transaction_type == "debt":
-            for item_data in items_data:
-                TransactionItem.objects.create(transaction=transaction, **item_data)
-        return transaction
 
 
 class CustomerSerializer(serializers.ModelSerializer):
-    total_debt = serializers.ReadOnlyField()
-    total_payments = serializers.ReadOnlyField()
+    total_debt = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
     transactions = TransactionSerializer(many=True, read_only=True)
+    last_transaction_date = serializers.DateTimeField(read_only=True)
 
     class Meta:
         model = Customer
@@ -72,8 +48,29 @@ class CustomerSerializer(serializers.ModelSerializer):
             "id",
             "name",
             "phone",
-            "created_at",
+            "last_transaction_date",
             "total_debt",
-            "total_payments",
             "transactions",
         ]
+        
+    def to_representation(self, instance):
+        """add computed values dynamically"""
+        data = super().to_representation(instance)
+        transactions = instance.transactions.all()
+        
+        total_debt = sum(
+            t.total_amount for t in transactions if t.transaction_type == "debt"
+        )
+        total_payments = sum(
+            t.total_amount for t in transactions if t.transaction_type == "payments"
+        )
+        balance = total_debt - total_payments
+        
+        data.update(
+            {
+                "total_debt": total_debt,
+                "total_payments": total_payments,
+                "balance": balance,
+            }
+        )
+        return data
