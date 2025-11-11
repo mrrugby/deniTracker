@@ -7,14 +7,15 @@ export default defineConfig({
     vue(),
     VitePWA({
       registerType: "autoUpdate",
+      includeAssets: ['favicon.ico', 'apple-touch-icon.png'],
       manifest: {
         name: "DeniTracker",
         short_name: "DeniTracker",
         description: "Offline debt tracker for small business owners",
-        theme_color: "#2563eb", // Tailwind blue-600
+        theme_color: "#2563eb", 
         background_color: "#ffffff",
         display: "standalone",
-        orientation: "portrait",
+        orientation: "portrait-primary",
         start_url: "/",
         icons: [
           {

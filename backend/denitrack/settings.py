@@ -46,6 +46,9 @@ MIDDLEWARE = [
 ]
 
 CORS_ALLOW_ALL_ORIGINS = True
+CSRF_TRUSTED_ORIGINS = [
+    "https://your-frontend.vercel.app"
+]
 
 REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": [
