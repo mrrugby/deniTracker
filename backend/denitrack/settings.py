@@ -14,11 +14,10 @@ SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "django-insecure-local-secret-key")
 DEBUG = True
 
 ALLOWED_HOSTS = [
-                 '127.0.0.1:8000',
-                 '127.0.0.1',
-                 'https://denitracker.onrender.com/',
-                 
-                 ]
+    "localhost",                
+    "127.0.0.1",                
+    "denitracker.onrender.com", 
+]
 
 
 # Application definition
