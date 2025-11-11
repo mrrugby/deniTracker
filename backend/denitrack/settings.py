@@ -8,12 +8,16 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "django-insecure-local-secret-key")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["https://denitracker.onrender.com"]
+ALLOWED_HOSTS = ["https://denitracker.onrender.com",
+                 '127.0.0.1:8000',
+                 '127.0.0.1',
+                 
+                 ]
 
 
 # Application definition
@@ -46,7 +50,9 @@ MIDDLEWARE = [
 ]
 
 CORS_ALLOWED_ORIGINS = [
-    "https://deni-tracker.vercel.app/",
+    "https://deni-tracker.vercel.app",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
 ]
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
