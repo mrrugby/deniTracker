@@ -1,1 +1,1 @@
-web: gunicorn denitrack.wsgi:application --log-file -
+web: gunicorn denitrack.wsgi --log-file -
