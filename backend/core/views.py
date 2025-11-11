@@ -2,7 +2,7 @@ from django.shortcuts import render
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from .models import Customer, Item, Transaction
+from .models import Customer, Item, Transaction, TransactionItem
 from .serializers import (CustomerSerializer, ItemSerializer, TransactionSerializer, )
 
 # Create your views here.
@@ -15,21 +15,30 @@ class ItemViewSet(viewsets.ModelViewSet):
     serializer_class = ItemSerializer
     
 class TransactionViewSet(viewsets.ModelViewSet):
-    """
-    handle debt and payment transactions
-    """
     queryset = Transaction.objects.all().select_related("customer").prefetch_related("items__item")
     serializer_class = TransactionSerializer
-    
+
     def create(self, request, *args, **kwargs):
-        """
-        custom create to allow nested items for debt transactions
-        """
-        serializer = self.get_serializer(data=request.data)
+        data = request.data.copy()
+        items_data = data.pop("items", [])
+
+        # Create the transaction
+        serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        headers = self.get_success_header(serializer.data)
-        return Response(serializer.data, status==status.HTTP_201_CREATED, headers=headers)
+        transaction = serializer.save()
+
+        # Only create TransactionItem objects for debt
+        if transaction.transaction_type == "debt":
+            for item in items_data:
+                TransactionItem.objects.create(
+                    transaction=transaction,
+                    item_id=item["item"],
+                    quantity=item.get("quantity", 1),
+                    unit_price=Item.objects.get(id=item["item"]).price
+                )
+
+        headers = self.get_success_headers(serializer.data)
+        return Response(self.get_serializer(transaction).data, status=status.HTTP_201_CREATED, headers=headers)
     
 @action(detail=False, methods=["get"])
 def by_customer(self, request):

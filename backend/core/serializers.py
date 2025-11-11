@@ -21,6 +21,9 @@ class TransactionItemSerializer(serializers.ModelSerializer):
 class TransactionSerializer(serializers.ModelSerializer):
     items = TransactionItemSerializer(many=True, read_only=True)
     customer_name = serializers.CharField(source="customer.name", read_only=True)
+    total_amount = serializers.DecimalField(
+    max_digits=10, decimal_places=2, read_only=True
+    )
     
 
     class Meta:
@@ -30,6 +33,7 @@ class TransactionSerializer(serializers.ModelSerializer):
             "customer",
             "customer_name",
             "transaction_type",
+            "total_amount",
             "amount",
             "items",
             "date",
@@ -39,6 +43,7 @@ class TransactionSerializer(serializers.ModelSerializer):
 
 class CustomerSerializer(serializers.ModelSerializer):
     total_debt = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    total_payments = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
     transactions = TransactionSerializer(many=True, read_only=True)
     last_transaction_date = serializers.DateTimeField(read_only=True)
 
@@ -51,6 +56,7 @@ class CustomerSerializer(serializers.ModelSerializer):
             "last_transaction_date",
             "total_debt",
             "transactions",
+            "total_payments",
         ]
         
     def to_representation(self, instance):
@@ -62,15 +68,15 @@ class CustomerSerializer(serializers.ModelSerializer):
             t.total_amount for t in transactions if t.transaction_type == "debt"
         )
         total_payments = sum(
-            t.total_amount for t in transactions if t.transaction_type == "payments"
+            t.total_amount for t in transactions if t.transaction_type == "payment"
         )
-        balance = total_debt - total_payments
+        
         
         data.update(
             {
                 "total_debt": total_debt,
                 "total_payments": total_payments,
-                "balance": balance,
+                "balance": total_debt - total_payments,
             }
         )
         return data

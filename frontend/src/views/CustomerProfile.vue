@@ -1,220 +1,233 @@
 <template>
-  <!-- ✅ Prevent null errors while data loads -->
-  <div v-if="customer" class="profile">
+  <div class="profile">
+    <header>
+      <button class="back" @click="$router.push('/')">
+        <svg class="icon" viewBox="0 0 24 24">
+          <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+        </svg>
+        Back
+      </button>
+      <h2>{{ customer?.name || 'Customer' }}</h2>
+      <button class="settings">
+        <svg class="icon" viewBox="0 0 24 24">
+          <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+        </svg>
+      </button>
+    </header>
 
-    <button @click="goBack" class="back-btn">← Back</button>
+    <section class="customer-details" v-if="customer">
+      <p><strong>Total Debt:</strong> {{ parseFloat(customer.total_debt || 0).toFixed(2) }} Ksh</p>
+      <p><strong>Total Payments:</strong> {{ parseFloat(customer.total_payments || 0).toFixed(2) }} Ksh</p>
+      <p><strong>Outstanding:</strong> {{ (parseFloat(customer.total_debt || 0) - parseFloat(customer.total_payments || 0)).toFixed(2) }} Ksh</p>
+    </section>
 
-    <h1>{{ customer.name }}</h1>
-    <p class="phone">{{ customer.phone }}</p>
+    <section class="actions">
+      <button @click="showDebtModal = true">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14m7-7H5"/></svg>
+        Add Deni
+      </button>
+      <button @click="showPaymentModal = true" class="secondary">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14m7-7H5"/></svg>
+        Add Payment
+      </button>
+    </section>
 
-    <div class="summary-card">
-      <p><strong>Total Debt:</strong> {{ customer.total_debt }} Ksh</p>
-      <p><strong>Total Payments:</strong> {{ customer.total_payments }} Ksh</p>
-      <p><strong>Balance:</strong> {{ customer.balance }} Ksh</p>
-    </div>
+<section class="transactions" v-if="transactions.length">
+  <h3>Transactions</h3>
+  <ul>
+    <li v-for="t in transactions" :key="t.id" class="transaction-card">
+      <div class="transaction-icon">
+        <svg class="icon">
+          <path v-if="t.transaction_type==='debt'" d="M19 13H5v-2h14v2z"/>
+          <path v-else d="M12 5v14m7-7H5"/>
+        </svg>
+      </div>
+      <div class="transaction-info">
+        <p class="transaction-title">{{ t.transaction_type==='debt' ? 'Debt' : 'Payment' }} — {{ parseFloat(t.total_amount || 0).toFixed(2) }} Ksh</p>
+        <p class="transaction-subtitle">{{ t.description || '' }}</p>
+      </div>
+      <div class="transaction-status">
+        <span :class="t.transaction_type==='debt' ? 'unpaid' : 'paid'">
+          {{ t.transaction_type==='debt' ? 'Unpaid' : 'Paid' }}
+        </span>
+        <p class="transaction-date">{{ new Date(t.date).toLocaleDateString() }}</p>
+      </div>
+    </li>
+  </ul>
+</section>
 
-    <div class="actions">
-      <button class="btn debt" @click="openDebtModal">+ Add Debt</button>
-      <button class="btn payment" @click="openPaymentModal">Record Payment</button>
-    </div>
 
-    <h2>Transactions</h2>
-    <ul class="transactions">
-      <li v-for="t in customer.transactions" :key="t.id" class="transaction">
-
-        <p class="date">{{ formatDate(t.date) }}</p>
-
-        <!-- Debt transaction -->
-        <p v-if="t.transaction_type === 'debt'" class="type debt-type">
-          Debt ({{ sumItems(t.items) }} Ksh)
-        </p>
-
-        <ul v-if="t.items.length">
-          <li v-for="item in t.items" :key="item.id">
-            {{ item.item_name }} ({{ item.quantity }} × {{ item.unit_price }} = {{ item.subtotal }} Ksh)
-          </li>
-        </ul>
-
-        <!-- Payment transaction -->
-        <p v-if="t.transaction_type === 'payment'" class="type pay-type">
-          Payment: {{ t.amount }} Ksh
-        </p>
-      </li>
-    </ul>
-
-    <!-- ✅ DEBT MODAL -->
-    <div v-if="showDebt" class="modal">
-      <div class="panel">
-        <h3>Add Debt</h3>
-
-        <label>Item name</label>
-        <input v-model="itemName" placeholder="Milk, Bread, Sugar..." />
-
-        <label>Price</label>
-        <input v-model.number="itemPrice" type="number" />
-
-        <label>Quantity</label>
-        <input v-model.number="itemQty" type="number" min="1" />
-
-        <button class="btn" @click="submitDebt">Add Debt</button>
-        <button class="close" @click="closeModals">Cancel</button>
+    <!-- Modals -->
+    <div v-if="showPaymentModal || showDebtModal" class="modal">
+      <div class="modal-content">
+        <h3 v-if="showPaymentModal">Record Payment</h3>
+        <input v-if="showPaymentModal" v-model.number="paymentAmount" type="number" placeholder="Amount Paid" />
+        <h3 v-if="showDebtModal">Add Deni (Credit Sale)</h3>
+        <div v-if="showDebtModal" class="item-list">
+          <div v-for="item in items" :key="item.id" class="item-row">
+            <label><input type="checkbox" v-model="item.selected"/> {{ item.name }} ({{ parseFloat(item.price || 0).toFixed(2) }})</label>
+            <input v-if="item.selected" v-model.number="item.quantity" type="number" min="1" class="qty"/>
+          </div>
+        </div>
+        <div v-if="showDebtModal" class="total">Total: {{ computedTotal.toFixed(2) }}</div>
+        <div class="modal-actions">
+          <button @click="showPaymentModal ? submitPayment() : submitDebt()">Save</button>
+          <button class="cancel" @click="showPaymentModal=false;showDebtModal=false;">Cancel</button>
+        </div>
       </div>
     </div>
 
-    <!-- ✅ PAYMENT MODAL -->
-    <div v-if="showPayment" class="modal">
-      <div class="panel">
-        <h3>Record Payment</h3>
-
-        <label>Amount</label>
-        <input v-model.number="paymentAmount" type="number" min="1" />
-
-        <button class="btn" @click="submitPayment">Record</button>
-        <button class="close" @click="closeModals">Cancel</button>
-      </div>
+    <!-- Floating Add Transaction Button -->
+    <div class="fab">
+      <button @click="showDebtModal=true">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14m7-7H5"/></svg>
+      </button>
     </div>
-
-  </div>
-
-  <!-- ✅ Loading state -->
-  <div v-else class="loading">
-    Loading customer…
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
-import { useRoute, useRouter } from "vue-router";
-import { fetchCustomer, addDebt, addPayment } from "@/services/api";
+import { ref, onMounted, computed } from "vue";
+import { useRoute } from "vue-router";
+import { fetchItems, addTransaction } from "@/services/api";
 
 const route = useRoute();
-const router = useRouter();
-
-const customer = ref(null);
-
-// Modal toggles
-const showDebt = ref(false);
-const showPayment = ref(false);
-
-// Debt form fields
-const itemName = ref("");
-const itemPrice = ref(0);
-const itemQty = ref(1);
-
-// Payment field
+const customer = ref({ id:0, name:'', total_debt:0, total_payments:0, transactions:[] });
+const transactions = ref([]);
+const items = ref([]);
+const showPaymentModal = ref(false);
+const showDebtModal = ref(false);
 const paymentAmount = ref(0);
 
-function openDebtModal() { showDebt.value = true; }
-function openPaymentModal() { showPayment.value = true; }
-function closeModals() {
-  showDebt.value = false;
-  showPayment.value = false;
-}
-
-function sumItems(items) {
-  return items.reduce((sum, i) => sum + parseFloat(i.subtotal), 0);
-}
-
-function formatDate(d) {
-  return new Date(d).toLocaleString();
-}
-
 async function loadCustomer() {
-  const id = route.params.id;
-  customer.value = await fetchCustomer(id);
+  const res = await fetch(`${import.meta.env.VITE_API_BASE || "http://127.0.0.1:8000/api"}/customers/${route.params.id}/`);
+  const json = await res.json();
+  customer.value = { ...json };
+  transactions.value = (json.transactions || []).map(t=>({...t,total_amount:parseFloat(t.total_amount||0)}));
 }
 
-// Add new debt
-async function submitDebt() {
-  await addDebt(customer.value.id, [
-    {
-      item_name: itemName.value,
-      unit_price: itemPrice.value,
-      quantity: itemQty.value,
-      subtotal: itemPrice.value * itemQty.value,
-    },
-  ]);
-
-  closeModals();
-  await loadCustomer();
+async function loadItems() {
+  const fetchedItems = await fetchItems();
+  items.value = fetchedItems.map(i=>({...i,selected:false,quantity:1}));
 }
 
-// Add payment
 async function submitPayment() {
-  await addPayment(customer.value.id, paymentAmount.value);
-
-  closeModals();
-  await loadCustomer();
+  await addTransaction(customer.value.id,'payment',{amount:paymentAmount.value});
+  paymentAmount.value=0; showPaymentModal.value=false; await loadCustomer();
 }
 
-function goBack() {
-  router.push("/");
+async function submitDebt() {
+  const selected = items.value.filter(i=>i.selected&&i.quantity>0);
+  if(!selected.length){alert('Select at least one item'); return;}
+  await addTransaction(customer.value.id,'debt',{items:selected.map(i=>({item:i.id,quantity:i.quantity}))});
+  showDebtModal.value=false; await loadCustomer();
 }
 
-onMounted(loadCustomer);
+const computedTotal = computed(()=>items.value.filter(i=>i.selected).reduce((sum,i)=>sum+(parseFloat(i.price||0)*i.quantity),0));
+
+onMounted(()=>{loadCustomer(); loadItems();});
 </script>
 
 <style scoped>
-.profile {
-  padding: 1rem;
-}
+.profile { padding:1rem; font-family: system-ui, sans-serif; position:relative; }
 
-.summary-card {
-  background: #f3f4f6;
-  padding: 1rem;
-  border-radius: .8rem;
-  margin-bottom: 1rem;
-}
-
-.actions {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-
-.btn {
-  padding: .6rem 1rem;
-  border: none;
-  border-radius: .5rem;
-  background: #2563eb;
-  color: white;
-}
-
-.debt-type { color: red; font-weight: bold; }
-.pay-type { color: green; font-weight: bold; }
-
-.transactions {
+.transactions ul {
   list-style: none;
   padding: 0;
 }
 
-.transaction {
-  background: white;
-  padding: .8rem;
-  border: 1px solid #ddd;
-  border-radius: .6rem;
-  margin-bottom: .6rem;
-}
-
-.modal {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,.5);
+.transaction-card {
   display: flex;
-  justify-content: center;
   align-items: center;
+  gap: 1rem;
+  padding: 0.75rem;
+  background: #fff;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  margin-bottom: 0.75rem;
 }
 
-.panel {
-  background: white;
-  padding: 1rem;
-  border-radius: .8rem;
-  width: 260px;
+.transaction-icon {
+  width: 48px;
+  height: 48px;
+  background: #f3f4f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
 }
 
-.loading {
-  padding: 2rem;
-  text-align: center;
-  font-size: 1.2rem;
+.transaction-icon .icon {
+  width: 24px;
+  height: 24px;
+  fill: currentColor;
 }
+
+.transaction-info {
+  flex: 1;
+}
+
+.transaction-title {
+  font-weight: 500;
+  font-size: 1rem;
+}
+
+.transaction-subtitle {
+  font-size: 0.875rem;
+  color: #6b7280; /* text-secondary */
+}
+
+.transaction-status {
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.transaction-status span {
+  padding: 0.25rem 0.625rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: 9999px;
+  display: inline-block;
+}
+
+.transaction-status .unpaid {
+  background-color: rgba(211, 47, 47, 0.1);
+  color: #D32F2F;
+}
+
+.transaction-status .paid {
+  background-color: rgba(30, 96, 67, 0.1);
+  color: #1E6043;
+}
+
+.transaction-date {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+ 
+
+header { display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; }
+.back,.settings { background:transparent;border:none;display:flex;align-items:center;gap:0.3rem; cursor:pointer; }
+.customer-details { background:#f3f4f6; border-radius:1rem; padding:1rem; margin-bottom:1rem; }
+.actions { display:flex; gap:0.5rem; margin-bottom:1rem; }
+.actions button { flex:1; display:flex; align-items:center; gap:0.3rem; padding:0.5rem; border:none; border-radius:0.5rem; background:#1763cf; color:white; cursor:pointer; }
+.actions button.secondary { background:#6b7280; }
+.transactions ul { list-style:none; padding:0; }
+.transaction-item { display:flex; gap:0.5rem; align-items:center; margin-bottom:0.5rem; }
+.icon-wrapper { width:36px;height:36px;background:#f3f4f6;display:flex;align-items:center;justify-content:center;border-radius:0.5rem; }
+.transaction-details .date{font-size:0.75rem;color:#6b7280;}
+.icon{width:24px;height:24px;fill:currentColor;}
+.modal { position:fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.4); display:flex; align-items:center; justify-content:center;}
+.modal-content { background:white; padding:1rem; border-radius:0.5rem; width:90%; max-width:400px;}
+.item-list{max-height:300px;overflow-y:auto;margin-bottom:0.5rem;}
+.item-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem;}
+.qty{width:60px;}
+.total{font-weight:bold;text-align:right;margin-bottom:0.5rem;}
+.modal-actions{display:flex;justify-content:flex-end;gap:0.5rem;}
+.modal-actions button{padding:0.5rem 1rem;border:none;border-radius:0.4rem;cursor:pointer;background:#1763cf;color:white;}
+.modal-actions button.cancel{background:#9ca3af;}
+.fab{position:fixed;bottom:16px;right:16px;}
+.fab button{width:56px;height:56px;border-radius:50%;background:#1E6043;color:white;display:flex;align-items:center;justify-content:center;cursor:pointer;}
 </style>

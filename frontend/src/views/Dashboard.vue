@@ -1,167 +1,245 @@
 <template>
   <div class="dashboard">
+    <!-- Top Bar -->
+    <header class="top-bar">
+      <div class="logo">
+        <span class="icon">💰</span>
+        <h1>DeniTracker</h1>
+      </div>
+      
+    </header>
 
+    <!-- Summary Cards -->
+    <section class="summary-cards">
+      <div class="card">
+        <p>Total Debt</p>
+        <h2>{{ totalDebt.toFixed(2) }} Ksh</h2>
+      </div>
+      <div class="card">
+        <p>Total Repaid</p>
+        <h2>{{ totalPayments.toFixed(2) }} Ksh</h2>
+      </div>
+    </section>
 
-    <div class="content">
-
-      <!-- Stats Cards -->
-      <div class="stats-cards">
-        <div class="card">
-          <p class="card-title">Total Debt</p>
-          <p class="card-value">{{ totalDebt.toFixed(2) }} Ksh</p>
-          <p class="card-subtext">Total across all customers</p>
-        </div>
-        <div class="card">
-          <p class="card-title">Total Payments</p>
-          <p class="card-value">{{ totalPayments.toFixed(2) }} Ksh</p>
-          <p class="card-subtext">Total received</p>
-        </div>
+    <div class="actions">
+        <button class="btn primary" @click="showAddTransaction = true">Add Transaction</button>
+        <button class="btn secondary" @click="showAddCustomer = true">Add Customer</button>
       </div>
 
-      <!-- Customer List -->
-      <section class="customers">
-        <div class="customers-header">
-          <h2>Customers</h2>
-          <button class="add-btn" @click="addCustomer">+ Add Customer</button>
-        </div>
-
-        <ul>
-          <li
-            v-for="customer in customers"
-            :key="customer.id"
-            @click="goToCustomer(customer.id)"
-            class="customer-card"
-          >
+    <!-- Customers List -->
+    <section class="customers">
+      <h2>Customers</h2>
+      <ul>
+        <li
+          v-for="customer in customers"
+          :key="customer.id"
+          class="customer-card"
+          @click="goToCustomer(customer.id)"
+        >
+          <div class="info">
             <h3>{{ customer.name }}</h3>
-            <p>Balance: {{ customer.total_debt.toFixed(2) }} Ksh</p>
-          </li>
-        </ul>
-      </section>
+            <p>Debt: {{ customer.total_debt.toFixed(2) }} Ksh</p>
+            <p>Payments: {{ customer.total_payments.toFixed(2) }} Ksh</p>
+            <strong>Balance: {{ (customer.total_debt - customer.total_payments).toFixed(2) }} Ksh</strong>
+          </div>
+        </li>
+      </ul>
+    </section>
 
+    <!-- Add Customer Modal -->
+    <div v-if="showAddCustomer" class="modal">
+      <div class="modal-content">
+        <h3>Add Customer</h3>
+        <input v-model="newCustomer.name" type="text" placeholder="Customer Name" />
+        <input v-model="newCustomer.phone" type="text" placeholder="Phone Number (optional)" />
+        <div class="modal-actions">
+          <button class="btn primary" @click="submitCustomer">Save</button>
+          <button class="btn cancel" @click="showAddCustomer = false">Cancel</button>
+        </div>
+      </div>
     </div>
 
+    <!-- Add Transaction Modal -->
+    <div v-if="showAddTransaction" class="modal">
+      <div class="modal-content">
+        <h3>Add Transaction</h3>
+        <p>(You can implement this modal later with options for payment or debt)</p>
+        <div class="modal-actions">
+          <button class="btn primary" @click="showAddTransaction = false">Close</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
-import { fetchCustomers } from "@/services/api";
-import TopNavbar from "@/components/TopNavbar.vue";
-import NavBar from "@/components/Navbar.vue"
+import { fetchCustomers, addCustomer } from "@/services/api";
 
 const router = useRouter();
+
 const customers = ref([]);
 const totalDebt = ref(0);
 const totalPayments = ref(0);
 
-async function loadData() {
-  try {
-    const data = await fetchCustomers();
-    customers.value = data;
+const showAddCustomer = ref(false);
+const showAddTransaction = ref(false);
 
-    totalDebt.value = data.reduce((sum, c) => sum + (c.total_debt || 0), 0);
-    totalPayments.value = data.reduce((sum, c) => sum + (c.total_payments || 0), 0);
-  } catch (err) {
-    console.error("Error fetching customers:", err);
-  }
+const newCustomer = ref({
+  name: "",
+  phone: "",
+});
+
+async function loadData() {
+  const data = await fetchCustomers();
+  customers.value = data.map(c => ({
+    ...c,
+    total_debt: parseFloat(c.total_debt || 0),
+    total_payments: parseFloat(c.total_payments || 0),
+  }));
+  totalDebt.value = customers.value.reduce((sum, c) => sum + c.total_debt, 0);
+  totalPayments.value = customers.value.reduce((sum, c) => sum + c.total_payments, 0);
 }
 
 function goToCustomer(id) {
   router.push(`/customer/${id}`);
 }
 
-function addCustomer() {
-  alert("This will open the Add Customer form (coming soon)");
+async function submitCustomer() {
+  if (!newCustomer.value.name.trim()) return alert("Customer name is required.");
+  await addCustomer(newCustomer.value);
+  newCustomer.value = { name: "", phone: "" };
+  showAddCustomer.value = false;
+  await loadData();
 }
 
 onMounted(loadData);
 </script>
 
 <style scoped>
-/* General Layout */
+/* Reset & Layout */
 .dashboard {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-  font-family: 'Inter', system-ui, sans-serif;
-  background-color: #f6f7f8;
-  color: #111821;
-}
-
-/* Main Content */
-.content {
-  flex: 1;
+  font-family: 'Inter', sans-serif;
   padding: 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
-/* Stats Cards */
-.stats-cards {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-.card {
-  flex: 1;
-  min-width: 160px;
-  background: #fff;
-  padding: 1rem;
-  border-radius: 0.75rem;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-.card-title { font-weight: 600; color: #6b7280; font-size: 0.9rem; }
-.card-value { font-weight: bold; font-size: 1.5rem; }
-.card-subtext { font-size: 0.8rem; color: #9ca3af; }
-
-/* Customers Section */
-.customers-header {
+/* Top Bar */
+.top-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 2rem;
 }
-.add-btn {
-  background-color: #1763cf;
-  color: #fff;
-  border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 0.5rem;
-  font-weight: 600;
-  cursor: pointer;
+.top-bar .logo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.top-bar .logo h1 {
+  font-size: 1.5rem;
+}
+.top-bar .actions button {
+  margin-left: 0.5rem;
 }
 
-ul {
-  list-style: none;
-  padding: 0;
-  margin: 0.5rem 0 0;
+/* Buttons */
+.btn {
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: bold;
+  cursor: pointer;
+  border: none;
+}
+.btn.primary {
+  background-color: #2563eb;
+  color: white;
+}
+.btn.secondary {
+  background-color: #f3f4f6;
+  color: #111;
+}
+.btn.cancel {
+  background-color: #9ca3af;
+  color: white;
+}
+
+/* Summary Cards */
+.summary-cards {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 2rem;
+}
+.summary-cards .card {
+  background: #f3f4f6;
+  padding: 1rem;
+  border-radius: 0.8rem;
+  flex: 1;
+  min-width: 200px;
+}
+.summary-cards .card h2 {
+  font-size: 1.5rem;
+  margin: 0.5rem 0;
+}
+.summary-cards .card .positive {
+  color: green;
+}
+.summary-cards .card .negative {
+  color: red;
+}
+
+/* Customers List */
+.customers h2 {
+  font-size: 1.25rem;
+  margin-bottom: 1rem;
 }
 .customer-card {
-  background: #fff;
   border: 1px solid #e5e7eb;
   border-radius: 0.8rem;
   padding: 0.8rem;
   margin-bottom: 0.8rem;
-  display: flex;
-  flex-direction: column;
   cursor: pointer;
-  transition: transform 0.1s ease, box-shadow 0.1s ease;
+  transition: background 0.2s;
 }
 .customer-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+  background: #f9fafb;
 }
-.customer-card h3 { margin: 0; font-size: 1.2rem; }
-.customer-card p { margin: 0.2rem 0 0; color: #555; font-size: 0.9rem; }
+.customer-card .info h3 {
+  margin: 0 0 0.25rem;
+}
 
-/* Responsive */
-@media (max-width: 600px) {
-  .stats-cards { flex-direction: column; }
-  .card { font-size: 0.95rem; }
-  .add-btn { font-size: 0.85rem; padding: 0.4rem 0.8rem; }
+/* Modal */
+.modal {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.modal-content {
+  background: white;
+  padding: 1rem;
+  border-radius: 0.8rem;
+  width: 90%;
+  max-width: 400px;
+}
+.modal-content input {
+  width: 100%;
+  padding: 0.5rem;
+  margin-bottom: 0.6rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.4rem;
+}
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+.modal-actions button {
+  margin-left: 0.5rem;
 }
 </style>
