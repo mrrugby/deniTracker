@@ -13,7 +13,7 @@ SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["from render"]
+ALLOWED_HOSTS = ["https://denitracker.onrender.com"]
 
 
 # Application definition
