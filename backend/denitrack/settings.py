@@ -56,7 +56,7 @@ CORS_ALLOWED_ORIGINS = [
 ]
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
-    "https://deni-tracker.vercel.app/"
+    "https://deni-tracker.vercel.app"
 ]
 
 REST_FRAMEWORK = {

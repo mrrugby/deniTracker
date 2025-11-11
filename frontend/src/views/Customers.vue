@@ -110,13 +110,14 @@ const search = ref("");
 const sortOption = ref("debt-desc");
 const router = useRouter();
 const newCustomer = ref({ name: "", phone: "" });
+const API_BASE = import.meta.env.VITE_API_BASE;
 
 const page = ref(1);
 const pageSize = 8;
 
 async function loadCustomers() {
   try {
-    const res = await fetch(`${import.meta.env.VITE_API_BASE|| "http://127.0.0.1:8000/api" }/customers/`);
+    const res = await fetch(`${API_BASE}/customers/`);
     const data = await res.json();
     customers.value = data;
   } catch (error) {
@@ -127,7 +128,7 @@ async function loadCustomers() {
 async function saveCustomer() {
   if (!newCustomer.value.name) return alert("Name required");
 
-  await fetch(`${import.meta.env.VITE_API_BASE}/customers/`, {
+  await fetch(`${API_BASE}/customers/`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(newCustomer.value),

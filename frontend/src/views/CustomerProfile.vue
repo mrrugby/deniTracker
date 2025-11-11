@@ -98,9 +98,10 @@ const items = ref([]);
 const showPaymentModal = ref(false);
 const showDebtModal = ref(false);
 const paymentAmount = ref(0);
+const API_BASE = import.meta.env.VITE_API_BASE;
 
 async function loadCustomer() {
-  const res = await fetch(`${import.meta.env.VITE_API_BASE || "http://127.0.0.1:8000/api"}/customers/${route.params.id}/`);
+  const res = await fetch(`${API_BASE}/customers/${route.params.id}/`);
   const json = await res.json();
   customer.value = { ...json };
   transactions.value = (json.transactions || []).map(t=>({...t,total_amount:parseFloat(t.total_amount||0)}));
