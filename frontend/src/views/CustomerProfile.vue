@@ -1,4 +1,6 @@
 <template>
+     <!-- Top Navigation -->
+    <TopNav />
   <div class="profile">
     <header>
       <button class="back" @click="$router.push('/')">
@@ -84,12 +86,16 @@
       </button>
     </div>
   </div>
+   <!-- Bottom Navigation -->
+    <BottomNav />
 </template>
 
 <script setup>
 import { ref, onMounted, computed } from "vue";
 import { useRoute } from "vue-router";
 import { fetchItems, addTransaction } from "@/services/api";
+import TopNav from "@/components/TopNav.vue";
+import BottomNav from "@/components/BottomNav.vue";
 
 const route = useRoute();
 const customer = ref({ id:0, name:'', total_debt:0, total_payments:0, transactions:[] });

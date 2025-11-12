@@ -1,16 +1,9 @@
 <template>
   <div class="dashboard">
-    <!-- Header -->
-    <header class="header">
-      <div class="logo">
-        <span class="material-symbols-outlined green">account_balance_wallet</span>
-        <h1>Debtly</h1>
-      </div>
-      <button class="icon-btn">
-        <span class="material-symbols-outlined">settings</span>
-      </button>
-    </header>
+    <!-- Top Navigation -->
+    <TopNav />
 
+   
     <!-- Summary cards -->
     <section class="cards">
       <div class="card red">
@@ -87,7 +80,7 @@
       </div>
     </section>
 
-    <!-- Modals (unchanged) -->
+    <!-- Modals -->
     <div v-if="showAddCustomer" class="modal">
       <div class="modal-content">
         <h3>Add Customer</h3>
@@ -140,13 +133,8 @@
       </div>
     </div>
 
-    <!-- Bottom Nav -->
-    <nav class="bottom-nav">
-      <a class="active"><span class="material-symbols-outlined">dashboard</span>Dashboard</a>
-      <a><span class="material-symbols-outlined">group</span>Customers</a>
-      <a><span class="material-symbols-outlined">receipt_long</span>Transactions</a>
-      <a><span class="material-symbols-outlined">analytics</span>Reports</a>
-    </nav>
+    <!-- Bottom Navigation -->
+    <BottomNav />
   </div>
 </template>
 
@@ -154,6 +142,8 @@
 import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { fetchCustomers, addCustomer, addTransaction } from "@/services/api";
+import TopNav from "@/components/TopNav.vue";
+import BottomNav from "@/components/BottomNav.vue";
 
 const router = useRouter();
 
@@ -230,6 +220,7 @@ onMounted(async () => {
 });
 </script>
 
+
 <style scoped>
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined");
@@ -297,7 +288,7 @@ onMounted(async () => {
   color: #dc2626;
 }
 .green {
-    color: #059669;
+  color: #059669;
 }
 
 /* === Actions === */
@@ -319,21 +310,19 @@ onMounted(async () => {
   font-weight: 600;
   cursor: pointer;
   transition: background 0.3s;
-  
 }
 .action.primary {
   background: #059669;
   color: white;
   border: none;
 }
-
 .action:hover {
   background: #b2bcc5;
 }
 
-/* === Payments === */
-.transactions-section{
-    padding: 0 1rem 1rem 1rem;
+/* === Transactions === */
+.transactions-section {
+  padding: 0 1rem 1rem 1rem;
 }
 .transactions {
   display: flex;
@@ -386,33 +375,7 @@ onMounted(async () => {
   color: #64748b;
 }
 
-/* === Bottom Navigation === */
-.bottom-nav {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  display: flex;
-  justify-content: space-around;
-  border-top: 1px solid #e2e8f0;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(6px);
-  padding: 0.5rem 0;
-}
-.bottom-nav a {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  color: #64748b;
-  font-size: 0.75rem;
-  text-decoration: none;
-}
-.bottom-nav a.active {
-  color: #059669;
-  font-weight: 700;
-}
-
-/* === Modals === (same as your original) */
+/* === Modals === */
 .modal {
   position: fixed;
   top: 0;

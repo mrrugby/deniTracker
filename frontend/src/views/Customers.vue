@@ -1,6 +1,7 @@
 <template>
+     <!-- Top Navigation -->
+    <TopNav />
   <div class="customers-page">
-
     <!-- Header -->
     <header class="topbar">
       <h1>Customers</h1>
@@ -97,12 +98,18 @@
       <button @click="showAddModal = true">+</button>
     </div>
 
+    
+
   </div>
+   <!-- Bottom Navigation -->
+    <BottomNav />
 </template>
 
 <script setup>
 import { ref, onMounted, computed } from "vue";
 import { useRouter } from "vue-router";
+import TopNav from "@/components/TopNav.vue";
+import BottomNav from "@/components/BottomNav.vue";
 
 const customers = ref([]);
 const showAddModal = ref(false);
