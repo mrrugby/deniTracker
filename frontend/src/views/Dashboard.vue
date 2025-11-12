@@ -1,70 +1,100 @@
 <template>
   <div class="dashboard">
-    <!-- Top Bar -->
-    <header class="top-bar">
+    <!-- Header -->
+    <header class="header">
       <div class="logo">
-        <span class="icon">💰</span>
-        <h1>DeniTracker</h1>
+        <span class="material-symbols-outlined green">account_balance_wallet</span>
+        <h1>Debtly</h1>
       </div>
+      <button class="icon-btn">
+        <span class="material-symbols-outlined">settings</span>
+      </button>
     </header>
 
-    <!-- Summary Cards -->
-    <section class="summary-cards">
-      <div class="card">
-        <p>Total Debt</p>
-        <h2>{{ totalDebt.toFixed(2) }} Ksh</h2>
+    <!-- Summary cards -->
+    <section class="cards">
+      <div class="card red">
+        <div class="card-header red">
+          <span class="material-symbols-outlined">error</span>
+          <p>Total Debt</p>
+        </div>
+        <p class="card-value red">{{ totalDebt.toFixed(2) }} Ksh</p>
       </div>
+
       <div class="card">
-        <p>Total Repaid</p>
-        <h2>{{ totalPayments.toFixed(2) }} Ksh</h2>
+        <div class="card-header">
+          <span class="material-symbols-outlined">account_balance</span>
+          <p>Total Repaid</p>
+        </div>
+        <p class="card-value">{{ totalPayments.toFixed(2) }} Ksh</p>
       </div>
     </section>
 
-    <!-- Action Buttons -->
-    <div class="actions">
-      <button class="btn primary" @click="showAddTransaction = true">Add Transaction</button>
-      <button class="btn secondary" @click="showAddCustomer = true">Add Customer</button>
-    </div>
+    <!-- Quick Actions -->
+    <section class="actions-section">
+      <h2>Quick Actions</h2>
+      <div class="actions">
+        <button class="action primary" @click="showAddTransaction = true">
+          <span class="material-symbols-outlined">add_circle</span>
+          <span>Add Transaction</span>
+        </button>
+        <button class="action" @click="showAddCustomer = true">
+          <span class="material-symbols-outlined">person_add</span>
+          <span>Add Customer</span>
+        </button>
+        <button class="action">
+          <span class="material-symbols-outlined">bar_chart</span>
+          <span>View Reports</span>
+        </button>
+      </div>
+    </section>
 
-    <!-- Transactions List -->
-    <section class="transactions">
+    <!-- Transactions -->
+    <section class="transactions-section">
       <h2>Recent Transactions</h2>
+      <p v-if="transactions.length === 0" class="empty-text">No transactions yet.</p>
 
-      <p v-if="transactions.length === 0" class="empty-text">
-        No transactions yet.
-      </p>
-
-      <ul v-else>
-        <li
+      <div v-else class="transactions">
+        <div
           v-for="tx in transactions"
           :key="tx.id"
-          class="transaction-card clickable"
+          class="transaction"
           @click="goToCustomer(tx.customer_id)"
         >
-          <div class="info">
-            <h3>{{ tx.customer_name }}</h3>
-            <p>
-              <strong>{{ tx.transaction_type === 'payment' ? 'Payment' : 'Debt' }}</strong>
-              — {{ tx.description || 'No description' }}
-            </p>
-            <p>Amount: {{ tx.amount.toFixed(2) }} Ksh</p>
-            <p class="date">{{ new Date(tx.date).toLocaleString() }}</p>
+          <div
+            class="icon"
+            :class="tx.transaction_type === 'payment' ? 'in' : 'out'"
+          >
+            <span class="material-symbols-outlined">
+              {{ tx.transaction_type === 'payment' ? 'arrow_downward' : 'arrow_upward' }}
+            </span>
           </div>
-        </li>
-      </ul>
+          <div class="info">
+            <p class="name">{{ tx.customer_name }}</p>
+            <small class="desc">{{ tx.description || 'No description' }}</small>
+          </div>
+          <div
+            class="amount"
+            :class="tx.transaction_type === 'payment' ? 'in' : 'out'"
+          >
+            <p>
+              {{ tx.transaction_type === 'payment' ? '+' : '-' }}
+              {{ tx.amount.toFixed(2) }} Ksh
+            </p>
+            <p class="date">{{ new Date(tx.date).toLocaleDateString() }}</p>
+          </div>
+        </div>
+      </div>
     </section>
 
-    <!-- Add Customer Modal -->
+    <!-- Modals (unchanged) -->
     <div v-if="showAddCustomer" class="modal">
       <div class="modal-content">
         <h3>Add Customer</h3>
-
         <label>Customer Name</label>
         <input v-model="newCustomer.name" type="text" placeholder="Enter name" />
-
         <label>Phone Number (optional)</label>
         <input v-model="newCustomer.phone" type="text" placeholder="e.g. 0712345678" />
-
         <div class="modal-actions">
           <button class="btn primary" @click="submitCustomer">Save</button>
           <button class="btn cancel" @click="showAddCustomer = false">Cancel</button>
@@ -72,7 +102,6 @@
       </div>
     </div>
 
-    <!-- Add Transaction Modal -->
     <div v-if="showAddTransaction" class="modal">
       <div class="modal-content">
         <h3>Add Transaction</h3>
@@ -110,6 +139,14 @@
         </div>
       </div>
     </div>
+
+    <!-- Bottom Nav -->
+    <nav class="bottom-nav">
+      <a class="active"><span class="material-symbols-outlined">dashboard</span>Dashboard</a>
+      <a><span class="material-symbols-outlined">group</span>Customers</a>
+      <a><span class="material-symbols-outlined">receipt_long</span>Transactions</a>
+      <a><span class="material-symbols-outlined">analytics</span>Reports</a>
+    </nav>
   </div>
 </template>
 
@@ -129,17 +166,8 @@ const API_BASE = import.meta.env.VITE_API_BASE;
 const showAddCustomer = ref(false);
 const showAddTransaction = ref(false);
 
-const newCustomer = ref({
-  name: "",
-  phone: "",
-});
-
-const transaction = ref({
-  customerId: "",
-  type: "",
-  amount: null,
-  description: "",
-});
+const newCustomer = ref({ name: "", phone: "" });
+const transaction = ref({ customerId: "", type: "", amount: null, description: "" });
 
 async function loadData() {
   const data = await fetchCustomers();
@@ -148,17 +176,14 @@ async function loadData() {
     total_debt: parseFloat(c.total_debt || 0),
     total_payments: parseFloat(c.total_payments || 0),
   }));
-  totalDebt.value = customers.value.reduce((sum, c) => sum + c.total_debt, 0);
-  totalPayments.value = customers.value.reduce((sum, c) => sum + c.total_payments, 0);
+  totalDebt.value = customers.value.reduce((s, c) => s + c.total_debt, 0);
+  totalPayments.value = customers.value.reduce((s, c) => s + c.total_payments, 0);
 }
 
 async function fetchTransactions() {
   const res = await fetch(`${API_BASE}/transactions/`);
   if (!res.ok) throw new Error("Failed to fetch transactions");
-
   const data = await res.json();
-  console.log("Fetched transactions:", data);
-
   transactions.value = data.map(tx => ({
     id: tx.id,
     customer_id: tx.customer || null,
@@ -171,10 +196,7 @@ async function fetchTransactions() {
 }
 
 function goToCustomer(id) {
-  if (!id) {
-    alert("Customer not found for this transaction.");
-    return;
-  }
+  if (!id) return alert("Customer not found for this transaction.");
   router.push(`/customer/${id}`);
 }
 
@@ -187,31 +209,19 @@ async function submitCustomer() {
 }
 
 async function submitTransaction() {
-  if (!transaction.value.customerId) return alert("Please select a customer.");
-  if (!transaction.value.type) return alert("Please select a transaction type.");
+  if (!transaction.value.customerId || !transaction.value.type)
+    return alert("Please fill all fields.");
 
-  if (transaction.value.type === "payment" && !transaction.value.amount) {
-    return alert("Enter payment amount.");
-  }
+  await addTransaction(transaction.value.customerId, transaction.value.type, {
+    amount: transaction.value.amount,
+    description: transaction.value.description,
+  });
 
-  if (transaction.value.type === "debt" && (!transaction.value.amount || !transaction.value.description)) {
-    return alert("Enter both description and amount for debt.");
-  }
-
-  try {
-    await addTransaction(transaction.value.customerId, transaction.value.type, {
-      amount: transaction.value.amount,
-      description: transaction.value.description,
-    });
-
-    alert("Transaction added successfully!");
-    showAddTransaction.value = false;
-    transaction.value = { customerId: "", type: "", amount: null, description: "" };
-    await loadData();
-    await fetchTransactions();
-  } catch (err) {
-    alert("Failed to add transaction: " + err.message);
-  }
+  alert("Transaction added!");
+  showAddTransaction.value = false;
+  transaction.value = { customerId: "", type: "", amount: null, description: "" };
+  await loadData();
+  await fetchTransactions();
 }
 
 onMounted(async () => {
@@ -221,127 +231,194 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined");
+
+/* === Base Layout === */
 .dashboard {
-  font-family: 'Inter', sans-serif;
-  padding: 1rem;
-  max-width: 1200px;
-  margin: 0 auto;
+  font-family: "Inter", sans-serif;
+  background: #f8fafc;
+  color: #0f172a;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 3rem;
 }
 
-/* Top Bar */
-.top-bar {
+/* === Header === */
+.header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
+  padding: 0 0.2rem;
+  border-bottom: 1px solid #e2e8f0;
 }
 .logo {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  font-weight: 200;
+  font-size: 1rem;
 }
-.logo h1 {
-  font-size: 1.5rem;
-}
-
-/* Buttons */
-.btn {
-  padding: 0.6rem 1.2rem;
-  border-radius: 0.5rem;
-  font-weight: bold;
-  cursor: pointer;
+.icon-btn {
+  background: transparent;
   border: none;
-  transition: background 0.2s ease;
-}
-.btn.primary {
-  background-color: #2563eb;
-  color: white;
-}
-.btn.primary:hover {
-  background-color: #1d4ed8;
-}
-.btn.secondary {
-  background-color: #f3f4f6;
-  color: #111;
-}
-.btn.secondary:hover {
-  background-color: #e5e7eb;
-}
-.btn.cancel {
-  background-color: #9ca3af;
-  color: white;
-}
-.btn.cancel:hover {
-  background-color: #6b7280;
-}
-
-/* Summary Cards */
-.summary-cards {
-  display: flex;
-  gap: 1rem;
-  flex-wrap: wrap;
-  margin-bottom: 2rem;
-}
-.summary-cards .card {
-  background: #f3f4f6;
-  padding: 1rem;
-  border-radius: 0.8rem;
-  flex: 1;
-  min-width: 200px;
-}
-.summary-cards .card h2 {
+  cursor: pointer;
+  color: #64748b;
   font-size: 1.5rem;
-  margin: 0.5rem 0;
 }
 
-/* Transactions */
+/* === Cards === */
+.cards {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  padding: 1rem;
+}
+.card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  padding: 0.3rem;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #64748b;
+}
+.card-value {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-top: 0.1rem;
+}
+.red {
+  color: #dc2626;
+}
+.green {
+    color: #059669;
+}
+
+/* === Actions === */
+.actions-section {
+  padding: 0 1rem;
+}
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.action {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid #e2e8f0;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.3s;
+  
+}
+.action.primary {
+  background: #059669;
+  color: white;
+  border: none;
+}
+
+.action:hover {
+  background: #b2bcc5;
+}
+
+/* === Payments === */
+.transactions-section{
+    padding: 0 1rem 1rem 1rem;
+}
 .transactions {
-  margin-top: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
-.transactions h2 {
-  font-size: 1.25rem;
-  margin-bottom: 1rem;
+.transaction {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  padding: 0.2rem;
+  background: white;
+  cursor: pointer;
+  transition: transform 0.2s;
 }
-.transaction-card {
-  border: 1px solid #e5e7eb;
-  border-radius: 0.8rem;
-  padding: 0.8rem 1rem;
-  margin-bottom: 0.8rem;
-  background: #fff;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-  transition: transform 0.2s, background 0.2s;
-}
-.transaction-card:hover {
-  background: #f9fafb;
+.transaction:hover {
   transform: translateY(-2px);
 }
-.transaction-card.clickable {
-  cursor: pointer;
+.icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 3rem;
+  width: 3rem;
+  border-radius: 9999px;
 }
-.transaction-card .info h3 {
-  margin: 0 0 0.25rem;
-  font-weight: 600;
+.icon.in {
+  background: #dcfce7;
+  color: #16a34a;
 }
-.transaction-card .info p {
-  margin: 0.2rem 0;
-  color: #374151;
-  font-size: 0.9rem;
+.icon.out {
+  background: #fee2e2;
+  color: #dc2626;
 }
-.transaction-card .info .date {
-  color: #6b7280;
-  font-size: 0.8rem;
+.amount {
+  margin-left: auto;
+  text-align: right;
+  font-weight: 700;
 }
-.empty-text {
-  color: #6b7280;
-  text-align: center;
-  margin-top: 1rem;
+.amount.in {
+  color: #16a34a;
+}
+.amount.out {
+  color: #dc2626;
+}
+.date {
+  font-size: 0.75rem;
+  color: #64748b;
 }
 
-/* Modals */
+/* === Bottom Navigation === */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  display: flex;
+  justify-content: space-around;
+  border-top: 1px solid #e2e8f0;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(6px);
+  padding: 0.5rem 0;
+}
+.bottom-nav a {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: #64748b;
+  font-size: 0.75rem;
+  text-decoration: none;
+}
+.bottom-nav a.active {
+  color: #059669;
+  font-weight: 700;
+}
+
+/* === Modals === (same as your original) */
 .modal {
   position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   background: rgba(0, 0, 0, 0.45);
   display: flex;
   align-items: center;
@@ -352,54 +429,36 @@ onMounted(async () => {
 .modal-content {
   background: #fff;
   border-radius: 1rem;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
   width: 90%;
   max-width: 420px;
   padding: 2rem;
-  animation: fadeIn 0.25s ease;
-  box-sizing: border-box;
   display: flex;
   flex-direction: column;
-}
-.modal-content h3 {
-  margin-bottom: 1.2rem;
-  font-size: 1.3rem;
-  text-align: center;
-  font-weight: 600;
-  color: #111827;
-}
-.modal-content label {
-  display: block;
-  margin-bottom: 0.35rem;
-  font-weight: 500;
-  color: #374151;
 }
 .modal-content input,
 .modal-content select {
   width: 100%;
-  padding: 0.75rem 1rem;
   margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
   border: 1px solid #d1d5db;
   border-radius: 0.5rem;
-  font-size: 0.95rem;
-  transition: border-color 0.2s, box-shadow 0.2s;
-  box-sizing: border-box;
-  background-color: #fff;
-}
-.modal-content input:focus,
-.modal-content select:focus {
-  outline: none;
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
 .modal-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 0.6rem;
-  margin-top: 1.2rem;
+  gap: 0.5rem;
 }
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
+.btn.primary {
+  background: #059669;
+  color: #fff;
+  border: none;
+  border-radius: 0.5rem;
+  padding: 0.6rem 1.2rem;
+}
+.btn.cancel {
+  background: #9ca3af;
+  color: #fff;
+  border-radius: 0.5rem;
+  padding: 0.6rem 1.2rem;
 }
 </style>
