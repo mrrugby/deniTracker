@@ -50,14 +50,18 @@ MIDDLEWARE = [
 ]
 
 CORS_ALLOWED_ORIGINS = [
-    "https://deni-tracker.vercel.app",
+    'https://deni-tracker.vercel.app', 
+    'https://denitracker.onrender.com',
     "http://localhost:5173",
     "http://127.0.0.1:5173",
 ]
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
-    "https://deni-tracker.vercel.app"
+    "https://deni-tracker.vercel.app",
 ]
+#for testing
+CSRF_COOKIE_SECURE = False
+CSRF_COOKIE_HTTPONLY = False
 
 REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": [

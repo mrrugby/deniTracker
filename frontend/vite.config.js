@@ -53,7 +53,8 @@ export default defineConfig({
             },
           },
           {
-            urlPattern: /^http:\/\/127\.0\.0\.1:8000\/api\//,
+            urlPattern: ({ url}) =>
+                url.pathname.startsWith('/api/'),
             handler: "NetworkFirst",
             options: {
               cacheName: "api-cache",
