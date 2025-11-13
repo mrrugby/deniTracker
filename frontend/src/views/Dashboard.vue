@@ -36,8 +36,8 @@
           <span>Add Customer</span>
         </button>
         <button class="action">
-          <span class="material-symbols-outlined">bar_chart</span>
-          <span>View Reports</span>
+          <span class="material-symbols-outlined">add_shopping_cart</span>
+          <span>Add Stock</span>
         </button>
       </div>
     </section>
@@ -308,6 +308,7 @@ onMounted(async () => {
   border-radius: 0.75rem;
   border: 1px solid #e2e8f0;
   font-weight: 600;
+  font-size: 1.15rem;
   cursor: pointer;
   transition: background 0.3s;
 }
