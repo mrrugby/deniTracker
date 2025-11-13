@@ -1,21 +1,24 @@
 <template>
   <nav class="bottom-nav">
-    <a class="active">
+    <router-link to="/" active-class="active">
       <span class="material-symbols-outlined">dashboard</span>
       Dashboard
-    </a>
-    <a>
+    </router-link>
+
+    <router-link to="/customers" active-class="active">
       <span class="material-symbols-outlined">group</span>
       Customers
-    </a>
-    <a>
+    </router-link>
+
+    <router-link to="/transactions" active-class="active">
       <span class="material-symbols-outlined">receipt_long</span>
       Transactions
-    </a>
-    <a>
+    </router-link>
+
+    <router-link to="/stock" active-class="active">
       <span class="material-symbols-outlined">inventory_2</span>
       Stock
-    </a>
+    </router-link>
   </nav>
 </template>
 
@@ -37,6 +40,7 @@
   backdrop-filter: blur(6px);
   padding: 0.5rem 0;
 }
+
 .bottom-nav a {
   display: flex;
   flex-direction: column;
@@ -45,6 +49,7 @@
   font-size: 0.75rem;
   text-decoration: none;
 }
+
 .bottom-nav a.active {
   color: #059669;
   font-weight: 700;
