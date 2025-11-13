@@ -2,7 +2,7 @@
   <header class="header">
     <div class="logo">
       <span class="material-symbols-outlined green">account_balance_wallet</span>
-      <h1>Debtly</h1>
+      <h1>DEBTLY</h1>
     </div>
     <button class="icon-btn">
       <span class="material-symbols-outlined">settings</span>
