@@ -1,6 +1,9 @@
 import { db } from "@/db";
 import { addDebt } from "@/services/api";
 
+
+const API_BASE = import.meta.env.VITE_API_BASE;
+
 export async function queueTransaction(transaction) {
   transaction.synced = false;
   await db.transactions.add(transaction);
@@ -14,7 +17,7 @@ export async function syncOfflineTransactions() {
       if (t.transaction_type === "debt") {
         await addDebt(t.customer, t.items);
       } else {
-        const res = await fetch("http://127.0.0.1:8000/api/transactions/", {
+        const res = await fetch(`${API_BASE}/transactions/`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

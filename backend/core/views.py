@@ -11,8 +11,12 @@ class ItemViewSet(viewsets.ModelViewSet):
     list, create, update, delete items. 
     shop owner uses this to manage the pre-loaded price list
     """
-    queryset = Item.objects.filter(is_active=True).order_by("name")
+    queryset = Item.objects.all().order_by("name")
     serializer_class = ItemSerializer
+    
+    
+        
+        
     
 class TransactionViewSet(viewsets.ModelViewSet):
     queryset = Transaction.objects.all().select_related("customer").prefetch_related("items__item")

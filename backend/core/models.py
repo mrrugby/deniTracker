@@ -39,14 +39,26 @@ class Item(models.Model):
     
     
     def save(self, *args, **kwargs):
-        if self.pk:
+        is_update = self.pk is not None
+        if is_update:
             old_item = Item.objects.get(pk=self.pk)
-            if old_item.price !=self.price:
-                PriceHistory.objects.create(item=self,
-                                            old_price=old_item.price,
-                                            new_price=self.price
-                                            )
-                super().save(*args, **kwargs)
+            old_price = old_item.price
+        else:
+            old_price = None
+
+        super().save(*args, **kwargs)
+
+    # Create price history only if price changed
+        if is_update and old_price != self.price:
+            try:
+                PriceHistory.objects.create(
+                item=self,
+                old_price=old_price,
+                new_price=self.price
+            )
+            except Exception as e:
+            # Log error but do not fail saving item
+                print(f"Failed to create PriceHistory: {e}")    
     
 class PriceHistory(models.Model):
     """track price changes for audit"""

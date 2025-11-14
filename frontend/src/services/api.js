@@ -40,10 +40,36 @@ export async function addCustomer(data) {
   return await res.json();
 }
 
-export async function fetchItems() {
+// ---------- ITEM CRUD ----------
+export async function fetchItems() {  // ADD THIS
   const res = await fetch(`${API_BASE}/items/`);
   if (!res.ok) throw new Error("Failed to fetch items");
   return await res.json();
+}
+
+export async function addItem(data) {
+  const res = await fetch(`${API_BASE}/items/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error("Failed to add item");
+  return await res.json();
+}
+
+export async function updateItem(id, data) {
+  const res = await fetch(`${API_BASE}/items/${id}/`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error("Failed to update item");
+  return await res.json();
+}
+
+export async function deleteItem(id) {
+  const res = await fetch(`${API_BASE}/items/${id}/`, { method: "DELETE" });
+  if (!res.ok) throw new Error("Failed to delete item");
 }
 
 export async function addDebt(customerId, items) {

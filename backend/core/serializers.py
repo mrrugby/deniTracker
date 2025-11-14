@@ -6,6 +6,7 @@ class ItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = Item
         fields = ["id", "name", "price", "is_active"]
+        read_only_fields = ['id']
 
 
 class TransactionItemSerializer(serializers.ModelSerializer):
