@@ -4,18 +4,16 @@
   <div class="page">
     <header class="header">
       <h2>Shop Stock</h2>
-      <button class="add-btn" @click="openAddModal">+ Add Product</button>
+      <button class="add-btn" @click="openAddModal">
+        + Add Product
+      </button>
     </header>
 
-    <!-- Loading -->
-    <div v-if="store.loading" class="loading">Loading items…</div>
-
-    <!-- Error -->
-    <div v-if="store.error" class="error">{{ store.error }}</div>
-
-    <!-- Empty -->
-    <div v-if="!store.loading && store.items.length === 0" class="empty">
-      No stock items yet. Add your first item!
+    <!-- Loading / Error / Empty -->
+    <div v-if="store.loading" class="empty-state">Loading items…</div>
+    <div v-if="store.error" class="empty-state error">{{ store.error }}</div>
+    <div v-if="!store.loading && !store.error && store.items.length === 0" class="empty-state">
+      No stock items yet.<br>Add your first product!
     </div>
 
     <!-- Item List -->
@@ -25,51 +23,57 @@
         :key="item.id"
         class="item-card"
       >
-        <div>
-          <h3>{{ item.name }}</h3>
-          <p class="price">KSH {{ item.price }}</p>
-          <p class="status" :class="{ inactive: !item.is_active }">
-            {{ item.is_active ? "Active" : "Inactive" }}
-          </p>
+        <div class="item-info">
+          <h3>{{ formatName(item.name) }}</h3>
+          <p class="price">{{ Number(item.price).toLocaleString() }} Ksh</p>
+          <span class="status" :class="{ inactive: !item.is_active }">
+            {{ item.is_active ? 'In Stock' : 'Out of Stock' }}
+          </span>
         </div>
 
         <div class="actions">
-          <button @click="openEditModal(item)">Edit</button>
-          <button class="delete-btn" @click="deleteItem(item.id)">
-            Delete
-          </button>
+          <button @click="openEditModal(item)" class="edit-btn">Edit</button>
+          <button @click="deleteItem(item.id)" class="delete-btn">Delete</button>
         </div>
       </div>
     </div>
 
-    <!-- Modal -->
+    <!--  -->
     <teleport to="body">
-      <div v-if="showModal" class="modal-bg" @click.self="closeModal">
-        <div class="modal">
-          <h3>{{ editingItem ? "Edit Item" : "Add New Item" }}</h3>
+      <div v-if="showModal" class="modal-backdrop" @click.self="closeModal">
+        <div class="modal-content">
+          <h3>{{ editingItem ? "Edit Product" : "Add New Product" }}</h3>
 
-          <label>Name</label>
-          <input v-model="form.name" required />
+          <div class="input-group">
+            <label>Product Name</label>
+            <input v-model="form.name" type="text" placeholder="e.g. Unga 2kg" required />
+          </div>
 
-          <label>Price (KSH)</label>
-          <input
-            v-model="form.price"
-            @input="formatPrice"
-            type="text"
-            inputmode="decimal"
-            required
-          />
+          <div class="input-group">
+            <label>Price (Ksh)</label>
+            <input
+              v-model="form.price"
+              @input="formatPrice"
+              type="text"
+              inputmode="decimal"
+              placeholder="e.g. 185"
+              required
+            />
+          </div>
 
-          <label class="check-row">
-            <input type="checkbox" v-model="form.is_active" />
-            Active
-          </label>
+          <div class="input-group checkbox">
+            <label class="checkbox-label">
+              <input type="checkbox" v-model="form.is_active" />
+              <span class="checkmark"></span>
+              In Stock?
+            </label>
+          </div>
 
           <div class="modal-actions">
-            <button @click="saveItem" :disabled="saving">
+            <button @click="saveItem" class="btn primary" :disabled="saving">
               {{ saving ? "Saving…" : "Save" }}
             </button>
-            <button class="cancel" @click="closeModal">Cancel</button>
+            <button @click="closeModal" class="btn cancel">Cancel</button>
           </div>
         </div>
       </div>
@@ -97,13 +101,22 @@ const form = reactive({
   is_active: true,
 })
 
+// Auto-format name to Title Case (e.g. "milk 2litres" → "Milk 2Litres")
+function toTitleCase(str) {
+  return str
+    .toLowerCase()
+    .replace(/(^|\s)\w/g, letter => letter.toUpperCase())
+    .replace(/\b(L|Kg|Litres|Ml|G)\b/gi, match => match.toUpperCase())
+}
+
+function formatName(name) {
+  return toTitleCase(name)
+}
+
 onMounted(() => {
-  store.loadItems().catch(() => {
-    // Silent – error is shown in UI
-  })
+  store.loadItems().catch(() => {})
 })
 
-/* ---------- Modal ---------- */
 function openAddModal() {
   editingItem.value = null
   resetForm()
@@ -129,7 +142,6 @@ function resetForm() {
   form.is_active = true
 }
 
-/* ---------- Price Format ---------- */
 function formatPrice() {
   let v = String(form.price).replace(/[^\d.]/g, "")
   const parts = v.split(".")
@@ -138,16 +150,9 @@ function formatPrice() {
   form.price = parts.join(".")
 }
 
-/* ---------- Save ---------- */
 async function saveItem() {
-  if (!form.name.trim()) {
-    alert("Please enter a name")
-    return
-  }
-  if (!form.price || isNaN(Number(form.price))) {
-    alert("Please enter a valid price")
-    return
-  }
+  if (!form.name.trim()) return alert("Please enter a product name")
+  if (!form.price || isNaN(Number(form.price))) return alert("Please enter a valid price")
 
   const payload = {
     name: form.name.trim(),
@@ -159,182 +164,285 @@ async function saveItem() {
   try {
     if (editingItem.value) {
       await store.updateItem(editingItem.value.id, payload)
-      alert("Item updated successfully")
+      alert("Product updated")
     } else {
       await store.addItem(payload)
-      alert("Item added successfully")
+      alert("Product added successfully")
     }
     closeModal()
   } catch (e) {
-    alert("Error: " + e.message)
+    alert("Error: " + (e.message || "Something went wrong"))
   } finally {
     saving.value = false
   }
 }
 
-/* ---------- Delete ---------- */
 async function deleteItem(id) {
-  if (!confirm("Are you sure you want to delete this item?")) return
-
+  if (!confirm("Delete this product permanently?")) return
   try {
     await store.deleteItem(id)
-    alert("Item deleted")
+    alert("Product deleted")
   } catch (e) {
-    alert("Failed to delete: " + e.message)
+    alert("Failed to delete")
   }
 }
 </script>
 
 <style scoped>
-/* Page layout (so top & bottom nav don't overlap content) */
 .page {
-  padding: 80px 20px 90px; /* space for TopNav + BottomNav */
+  padding: 1rem;
+  min-height: 100vh;
+  background: #f8fafc;
+  font-family: system-ui, -apple-system, sans-serif;
+  padding-bottom: 5rem;
 }
 
-/* HEADER */
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 15px;
+  margin-bottom: 1.5rem;
+}
+
+.header h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1e293b;
 }
 
 .add-btn {
-  background: #2563eb;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
   color: white;
-  padding: 8px 14px;
-  border-radius: 8px;
   border: none;
+  padding: 0.9rem 1.2rem;
+  border-radius: 1rem;
   font-weight: 600;
+  font-size: 0.95rem;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+  transition: all 0.2s;
 }
 
-/* LIST */
+.add-btn:active {
+  transform: translateY(1px);
+}
+
+/* Item Cards */
 .item-list {
-  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
 .item-card {
-  padding: 14px;
-  border: 1px solid #e4e4e4;
-  background: #fff;
-  border-radius: 12px;
-  margin-bottom: 12px;
+  background: white;
+  border: 1px solid #f1f5f9;
+  border-radius: 1rem;
+  padding: 1rem 1.1rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-  transition: 0.15s;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+  transition: transform 0.15s;
 }
 
 .item-card:active {
   transform: scale(0.98);
 }
 
+.item-info h3 {
+  margin: 0 0 0.35rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
 .price {
-  font-weight: bold;
-  color: #111;
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: #1e293b;
+  margin: 0.25rem 0;
+}
+
+.status {
+  font-size: 0.8rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  font-weight: 600;
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status.inactive {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.actions{
+    display: flex;
+    gap: 0.4rem;
 }
 
 .actions button {
-  margin-left: 8px;
-  padding: 5px 10px;
+  padding: 0.5rem 0.9rem;
   border: none;
-  border-radius: 6px;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+
+}
+
+.edit-btn {
+  background: #e0e7ff;
+  color: #4338ca;
 }
 
 .delete-btn {
-  background: #dc2626;
-  color: white;
+  background: #fee2e2;
+  color: #dc2626;
 }
 
-/* Active / inactive label */
-.status {
-  font-size: 12px;
-  margin-top: 4px;
-  color: green;
-}
-.status.inactive {
-  color: #888;
-}
 
-/* MODAL BACKGROUND */
-.modal-bg {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  backdrop-filter: blur(2px);
-  background: rgba(0,0,0,0.45);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  animation: fadeIn 0.15s ease-out;
-}
-
-/* MODAL BOX */
-.modal {
-  background: white;
-  padding: 22px;
-  width: 85%;
-  max-width: 420px;
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-  animation: popIn 0.2s ease-out;
-}
-
-/* INPUT */
-.modal input[type="text"],
-.modal input[type="number"] {
-  width: 100%;
-  margin: 6px 0 12px;
-  padding: 10px;
-  border-radius: 8px;
-  border: 1px solid #d1d5db;
-  font-size: 16px;
-}
-
-.check-row {
-  display: flex;
-  align-items: center;
-  margin-top: 6px;
-  gap: 6px;
-}
-
-/* MODAL BUTTONS */
-.modal-actions {
-  margin-top: 15px;
-  display: flex;
-  justify-content: space-between;
-}
-
-.modal-actions button {
-  padding: 8px 14px;
-  border-radius: 6px;
-  border: none;
-  font-size: 15px;
-}
-
-.cancel {
-  background: #999;
-  color: white;
-}
-
-/* ANIMATIONS */
-@keyframes fadeIn {
-  from { opacity: 0 }
-  to { opacity: 1 }
-}
-
-@keyframes popIn {
-  from { transform: scale(0.95); opacity: 0 }
-  to { transform: scale(1); opacity: 1 }
-}
-
-/* EMPTY STATE */
-.empty {
-  margin-top: 20px;
+.empty-state {
   text-align: center;
-  color: #666;
+  padding: 3rem 1rem;
+  color: #94a3b8;
+  font-size: 1rem;
+}
+
+.empty-state.error {
+  color: #dc2626;
+}
+
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.modal-content {
+  background: white;
+  border-radius: 1.25rem;
+  width: 100%;
+  max-width: 420px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+  padding: 1.5rem;
+}
+
+.modal-content h3 {
+  margin: 0 0 1.5rem;
+  text-align: center;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.input-group {
+  margin-bottom: 1.5rem;
+}
+
+.input-group label {
+  
+  margin-bottom: 0.5rem;
+  color: #475569;
+  font-weight: 500;
+}
+
+.input-group input {
+  width: 100%;
+  padding: 0.9rem;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 0.75rem;
+  font-size: 1.1rem;
+  box-sizing: border-box;
+}
+
+.input-group input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  font-weight: 500;
+  color: #475569;
+  flex-wrap: wrao;
+}
+
+.checkbox-label input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.checkmark {
+  width: 22px;
+  height: 22px;
+  border: 2px solid #cbd5e1;
+  border-radius: 6px;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.checkbox-label input:checked ~ .checkmark {
+  background: #2563eb;
+  border-color: #2563eb;
+}
+
+.checkmark:after {
+  content: "";
+  position: absolute;
+  display: none;
+}
+
+.checkbox-label input:checked ~ .checkmark:after {
+  display: block;
+  left: 8px;
+  top: 4px;
+  width: 6px;
+  height: 10px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.modal-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.btn {
+  flex: 1;
+  padding: 0.9rem;
+  border: none;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn.primary {
+  background: #2563eb;
+  color: white;
+}
+
+.btn.cancel {
+  background: #e2e8f0;
+  color: #475569;
 }
 </style>

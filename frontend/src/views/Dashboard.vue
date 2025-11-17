@@ -3,7 +3,6 @@
     <!-- Top Navigation -->
     <TopNav />
 
-   
     <!-- Summary cards -->
     <section class="cards">
       <div class="card red">
@@ -11,7 +10,7 @@
           <span class="material-symbols-outlined">error</span>
           <p>Total Debt</p>
         </div>
-        <p class="card-value red">{{ totalDebt.toFixed(2) }} Ksh</p>
+        <p class="card-value red">{{ totalDebt.toLocaleString() }} Ksh</p>
       </div>
 
       <div class="card">
@@ -19,7 +18,7 @@
           <span class="material-symbols-outlined">account_balance</span>
           <p>Total Repaid</p>
         </div>
-        <p class="card-value">{{ totalPayments.toFixed(2) }} Ksh</p>
+        <p class="card-value">{{ totalPayments.toLocaleString() }} Ksh</p>
       </div>
     </section>
 
@@ -42,22 +41,19 @@
       </div>
     </section>
 
-    <!-- Transactions -->
+    <!-- Recent Transactions -->
     <section class="transactions-section">
       <h2>Recent Transactions</h2>
       <p v-if="transactions.length === 0" class="empty-text">No transactions yet.</p>
 
       <div v-else class="transactions">
         <div
-          v-for="tx in transactions"
+          v-for="tx in sortedTransactions"
           :key="tx.id"
           class="transaction"
           @click="goToCustomer(tx.customer_id)"
         >
-          <div
-            class="icon"
-            :class="tx.transaction_type === 'payment' ? 'in' : 'out'"
-          >
+          <div class="icon" :class="tx.transaction_type === 'payment' ? 'in' : 'out'">
             <span class="material-symbols-outlined">
               {{ tx.transaction_type === 'payment' ? 'arrow_downward' : 'arrow_upward' }}
             </span>
@@ -66,69 +62,124 @@
             <p class="name">{{ tx.customer_name }}</p>
             <small class="desc">{{ tx.description || 'No description' }}</small>
           </div>
-          <div
-            class="amount"
-            :class="tx.transaction_type === 'payment' ? 'in' : 'out'"
-          >
+          <div class="amount" :class="tx.transaction_type === 'payment' ? 'in' : 'out'">
             <p>
               {{ tx.transaction_type === 'payment' ? '+' : '-' }}
-              {{ tx.amount.toFixed(2) }} Ksh
+              {{ Number(tx.amount).toLocaleString() }} Ksh
             </p>
-            <p class="date">{{ new Date(tx.date).toLocaleDateString() }}</p>
+            <p class="date">
+              {{ new Date(tx.date).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) }}
+            </p>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Modals -->
-    <div v-if="showAddCustomer" class="modal">
-      <div class="modal-content">
+    <!-- Add Customer Modal -->
+    <div v-if="showAddCustomer" class="modal-backdrop" @click="showAddCustomer = false">
+      <div class="modal-content" @click.stop>
         <h3>Add Customer</h3>
-        <label>Customer Name</label>
-        <input v-model="newCustomer.name" type="text" placeholder="Enter name" />
-        <label>Phone Number (optional)</label>
-        <input v-model="newCustomer.phone" type="text" placeholder="e.g. 0712345678" />
+        <div class="input-group">
+          <label>Customer Name</label>
+          <input v-model="newCustomer.name" type="text" placeholder="Enter name" autofocus />
+        </div>
+        <div class="input-group">
+          <label>Phone Number</label>
+          <input v-model="newCustomer.phone" type="text" placeholder="e.g. 0712345678" />
+        </div>
         <div class="modal-actions">
-          <button class="btn primary" @click="submitCustomer">Save</button>
-          <button class="btn cancel" @click="showAddCustomer = false">Cancel</button>
+          <button @click="submitCustomer" class="btn primary">Save</button>
+          <button @click="showAddCustomer = false" class="btn cancel">Cancel</button>
         </div>
       </div>
     </div>
 
-    <div v-if="showAddTransaction" class="modal">
-      <div class="modal-content">
+    <!-- Add Transaction Modal with CUSTOM DROPDOWNS -->
+    <div v-if="showAddTransaction" class="modal-backdrop" @click="closeTransactionModal">
+      <div class="modal-content" @click.stop>
         <h3>Add Transaction</h3>
 
-        <label>Customer</label>
-        <select v-model="transaction.customerId">
-          <option disabled value="">Select a customer</option>
-          <option v-for="c in customers" :key="c.id" :value="c.id">
-            {{ c.name }}
-          </option>
-        </select>
+        <!-- CUSTOMER DROPDOWN -->
+        <div class="input-group">
+          <label>Customer</label>
+          <div class="custom-select-wrapper">
+            <button
+              class="custom-select-display"
+              @click="showCustomerDropdown = !showCustomerDropdown"
+              :aria-expanded="showCustomerDropdown"
+            >
+              <span>{{ selectedCustomerName || 'Select customer' }}</span>
+              <span class="material-symbols-outlined dropdown-icon">expand_more</span>
+            </button>
 
-        <label>Transaction Type</label>
-        <select v-model="transaction.type">
-          <option disabled value="">Select type</option>
-          <option value="payment">Payment</option>
-          <option value="debt">Debt</option>
-        </select>
+            <div v-if="showCustomerDropdown" class="custom-select-dropdown">
+              <div
+                v-for="c in customers"
+                :key="c.id"
+                class="custom-select-option"
+                :class="{ active: transaction.customerId === c.id }"
+                @click="selectCustomer(c.id, c.name)"
+              >
+                {{ c.name }}
+              </div>
+            </div>
+          </div>
+        </div>
 
+        <!-- TYPE DROPDOWN -->
+        <div class="input-group">
+          <label>Transaction Type</label>
+          <div class="custom-select-wrapper">
+            <button
+              class="custom-select-display"
+              @click="showTypeDropdown = !showTypeDropdown"
+              :aria-expanded="showTypeDropdown"
+            >
+              <span>{{ transaction.type ? (transaction.type === 'payment' ? 'Payment' : 'Debt') : 'Select type' }}</span>
+              <span class="material-symbols-outlined dropdown-icon">expand_more</span>
+            </button>
+
+            <div v-if="showTypeDropdown" class="custom-select-dropdown">
+              <div
+                class="custom-select-option"
+                :class="{ active: transaction.type === 'payment' }"
+                @click="transaction.type = 'payment'; showTypeDropdown = false"
+              >
+                Payment
+              </div>
+              <div
+                class="custom-select-option"
+                :class="{ active: transaction.type === 'debt' }"
+                @click="transaction.type = 'debt'; showTypeDropdown = false"
+              >
+                Debt
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Conditional Fields -->
         <div v-if="transaction.type === 'payment'">
-          <label>Amount (Ksh)</label>
-          <input type="number" v-model.number="transaction.amount" placeholder="e.g. 500" />
+          <div class="input-group">
+            <label>Amount (Ksh)</label>
+            <input type="number" v-model.number="transaction.amount" placeholder="e.g. 500" />
+          </div>
         </div>
 
         <div v-if="transaction.type === 'debt'">
-          <label>Description</label>
-          <input type="text" v-model="transaction.description" placeholder="e.g. 2kg sugar" />
-          <label>Amount (Ksh)</label>
-          <input type="number" v-model.number="transaction.amount" placeholder="e.g. 300" />
+          <div class="input-group">
+            <label>Description <small>(optional)</small></label>
+            <input type="text" v-model="transaction.description" placeholder="e.g. 2kg sugar" />
+          </div>
+          <div class="input-group">
+            <label>Amount (Ksh)</label>
+            <input type="number" v-model.number="transaction.amount" placeholder="e.g. 300" />
+          </div>
         </div>
 
         <div class="modal-actions">
-          <button class="btn primary" @click="submitTransaction">Save</button>
-          <button class="btn cancel" @click="showAddTransaction = false">Cancel</button>
+          <button @click="submitTransaction" class="btn primary">Save</button>
+          <button @click="closeTransactionModal" class="btn cancel">Cancel</button>
         </div>
       </div>
     </div>
@@ -139,7 +190,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { fetchCustomers, addCustomer, addTransaction } from "@/services/api";
 import TopNav from "@/components/TopNav.vue";
@@ -155,9 +206,31 @@ const API_BASE = import.meta.env.VITE_API_BASE;
 
 const showAddCustomer = ref(false);
 const showAddTransaction = ref(false);
+const showCustomerDropdown = ref(false);
+const showTypeDropdown = ref(false);
 
 const newCustomer = ref({ name: "", phone: "" });
 const transaction = ref({ customerId: "", type: "", amount: null, description: "" });
+
+const selectedCustomerName = computed(() => {
+  const customer = customers.value.find(c => c.id === transaction.value.customerId);
+  return customer ? customer.name : '';
+});
+
+const sortedTransactions = computed(() => {
+  return [...transactions.value].sort((a, b) => new Date(b.date) - new Date(a.date));
+});
+
+function selectCustomer(id, name) {
+  transaction.value.customerId = id;
+  showCustomerDropdown.value = false;
+}
+
+function closeTransactionModal() {
+  showAddTransaction.value = false;
+  showCustomerDropdown.value = false;
+  showTypeDropdown.value = false;
+}
 
 async function loadData() {
   const data = await fetchCustomers();
@@ -172,7 +245,7 @@ async function loadData() {
 
 async function fetchTransactions() {
   const res = await fetch(`${API_BASE}/transactions/`);
-  if (!res.ok) throw new Error("Failed to fetch transactions");
+  if (!res.ok) return;
   const data = await res.json();
   transactions.value = data.map(tx => ({
     id: tx.id,
@@ -207,8 +280,7 @@ async function submitTransaction() {
     description: transaction.value.description,
   });
 
-  alert("Transaction added!");
-  showAddTransaction.value = false;
+  closeTransactionModal();
   transaction.value = { customerId: "", type: "", amount: null, description: "" };
   await loadData();
   await fetchTransactions();
@@ -217,15 +289,19 @@ async function submitTransaction() {
 onMounted(async () => {
   await loadData();
   await fetchTransactions();
+
+  const closeAllDropdowns = (e) => {
+    if (!e.target.closest('.custom-select-wrapper')) {
+      showCustomerDropdown.value = false;
+      showTypeDropdown.value = false;
+    }
+  };
+  document.addEventListener('click', closeAllDropdowns);
+  onUnmounted(() => document.removeEventListener('click', closeAllDropdowns));
 });
 </script>
 
-
 <style scoped>
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined");
-
-/* === Base Layout === */
 .dashboard {
   font-family: "Inter", sans-serif;
   background: #f8fafc;
@@ -236,70 +312,57 @@ onMounted(async () => {
   padding-bottom: 3rem;
 }
 
-/* === Header === */
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 0.2rem;
-  border-bottom: 1px solid #e2e8f0;
-}
-.logo {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-weight: 200;
-  font-size: 1rem;
-}
-.icon-btn {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  color: #64748b;
-  font-size: 1.5rem;
-}
-
-/* === Cards === */
 .cards {
   display: grid;
   gap: 0.5rem;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   padding: 1rem;
 }
+
 .card {
   background: white;
   border: 1px solid #e2e8f0;
   border-radius: 0.75rem;
-  padding: 0.3rem;
+  padding: 1rem;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
 }
+
 .card-header {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   color: #64748b;
-}
-.card-value {
-  font-size: 2rem;
-  font-weight: 700;
-  margin-top: 0.1rem;
-}
-.red {
-  color: #dc2626;
-}
-.green {
-  color: #059669;
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
 }
 
-/* === Actions === */
-.actions-section {
+.card-value {
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.red { color: #dc2626; }
+
+.actions-section,
+.transactions-section {
   padding: 0 1rem;
 }
+
+.actions-section h2,
+.transactions-section h2 {
+  font-size: 1.1rem;
+  margin: 1.5rem 0 0.75rem;
+  color: #1e293b;
+  font-weight: 600;
+}
+
 .actions {
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
+  gap: 0.5rem;
 }
+
 .action {
   display: flex;
   align-items: center;
@@ -307,122 +370,255 @@ onMounted(async () => {
   padding: 1rem;
   border-radius: 0.75rem;
   border: 1px solid #e2e8f0;
+  background: black;
   font-weight: 600;
-  font-size: 1.15rem;
+  font-size: 1rem;
   cursor: pointer;
-  transition: background 0.3s;
+  transition: all 0.2s;
 }
+
 .action.primary {
   background: #059669;
   color: white;
   border: none;
 }
+
 .action:hover {
-  background: #b2bcc5;
+  transform: scale(0.99);
 }
 
-/* === Transactions === */
-.transactions-section {
-  padding: 0 1rem 1rem 1rem;
-}
 .transactions {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
+
 .transaction {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.8rem;
+  padding: 0.9rem 1rem;
+  background: white;
   border: 1px solid #e2e8f0;
   border-radius: 0.75rem;
-  padding: 0.2rem;
-  background: white;
   cursor: pointer;
-  transition: transform 0.2s;
+  transition: transform 0.15s;
 }
+
 .transaction:hover {
   transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
 }
+
 .icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 3rem;
-  width: 3rem;
-  border-radius: 9999px;
+  flex-shrink: 0;
 }
-.icon.in {
-  background: #dcfce7;
-  color: #16a34a;
+
+.icon.in { background: #dcfce7; color: #16a34a; }
+.icon.out { background: #fee2e2; color: #dc2626; }
+
+.info .name {
+  font-weight: 600;
+  margin: 0;
+  font-size: 0.95rem;
 }
-.icon.out {
-  background: #fee2e2;
-  color: #dc2626;
+
+.info .desc {
+  color: #64748b;
+  font-size: 0.8rem;
+  margin: 0.25rem 0 0;
 }
+
 .amount {
   margin-left: auto;
   text-align: right;
   font-weight: 700;
-}
-.amount.in {
-  color: #16a34a;
-}
-.amount.out {
-  color: #dc2626;
-}
-.date {
-  font-size: 0.75rem;
-  color: #64748b;
+  font-size: 0.95rem;
 }
 
-/* === Modals === */
-.modal {
+.amount.in { color: #16a34a; }
+.amount.out { color: #dc2626; }
+
+.amount .date {
+  font-size: 0.7rem;
+  color: #94a3b8;
+  margin-top: 0.25rem;
+  font-weight: 500;
+}
+
+.empty-text {
+  text-align: center;
+  color: #94a3b8;
+  padding: 2rem 0;
+  font-size: 0.95rem;
+}
+
+.modal-backdrop {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.45);
+  inset: 0;
+  background: rgba(0,0,0,0.5);
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 1rem;
   z-index: 1000;
   backdrop-filter: blur(4px);
 }
+
 .modal-content {
-  background: #fff;
-  border-radius: 1rem;
-  width: 90%;
-  max-width: 420px;
-  padding: 2rem;
-  display: flex;
-  flex-direction: column;
-}
-.modal-content input,
-.modal-content select {
+  background: white;
+  border-radius: 1.25rem;
   width: 100%;
-  margin-bottom: 1rem;
-  padding: 0.75rem 1rem;
-  border: 1px solid #d1d5db;
-  border-radius: 0.5rem;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+  padding: 1.5rem;
 }
+
+.modal-content h3 {
+  margin: 0 0 1.5rem;
+  text-align: center;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.input-group {
+  margin-bottom: 1.5rem;
+}
+
+.input-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #475569;
+  font-weight: 500;
+}
+
+.input-group small {
+  color: #64748b;
+  font-weight: normal;
+}
+
+.input-group input {
+  width: 100%;
+  padding: 0.9rem;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 0.75rem;
+  font-size: 1.1rem;
+  box-sizing: border-box;
+}
+
+.input-group input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
+}
+
 .modal-actions {
   display: flex;
-  justify-content: flex-end;
-  gap: 0.5rem;
+  gap: 1rem;
+  margin-top: 1.5rem;
 }
+
+.btn {
+  flex: 1;
+  padding: 0.9rem;
+  border: none;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
 .btn.primary {
   background: #059669;
-  color: #fff;
-  border: none;
-  border-radius: 0.5rem;
-  padding: 0.6rem 1.2rem;
+  color: white;
 }
+
 .btn.cancel {
-  background: #9ca3af;
-  color: #fff;
-  border-radius: 0.5rem;
-  padding: 0.6rem 1.2rem;
+  background: #e2e8f0;
+  color: #475569;
+}
+
+/* CUSTOM DROPDOWN STYLES */
+.custom-select-wrapper { position: relative; }
+
+.custom-select-display {
+  width: 100%;
+  background: #fff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 0.75rem;
+  padding: 0.9rem 1rem;
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: #1e293b;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  text-align: left;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  transition: all 0.15s ease;
+}
+
+.custom-select-display[aria-expanded="true"] .dropdown-icon {
+  transform: rotate(180deg);
+}
+
+.custom-select-display span:first-child {
+  color: #64748b;
+}
+.custom-select-display span:first-child:not(:empty) {
+  color: #1e293b;
+  font-weight: 500;
+}
+
+.dropdown-icon {
+  font-size: 1.4rem;
+  color: #64748b;
+  transition: transform 0.15s ease;
+}
+
+.custom-select-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+  z-index: 100;
+  max-height: 300px;
+  overflow-y: auto;
+  animation: dropdownIn 0.12s ease;
+}
+
+@keyframes dropdownIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.custom-select-option {
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #1e293b;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.custom-select-option:hover { background: #f1f5f9; }
+.custom-select-option.active {
+  background: #e8f0fe;
+  color: #1763cf;
+  font-weight: 700;
 }
 </style>

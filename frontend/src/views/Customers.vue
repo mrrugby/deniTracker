@@ -58,7 +58,7 @@
             <h3>{{ customer.name }}</h3>
             <p :class="{ red: outstanding(customer) > 0, green: outstanding(customer) <= 0 }" class="amount">
               {{ outstanding(customer) > 0
-                ? outstanding(customer).toFixed(2) + " Ksh due"
+                ? outstanding(customer).toLocaleString() + " Ksh due"
                 : "Paid up" }}
             </p>
 
@@ -66,12 +66,11 @@
               Last payment:
               {{
                 customer.last_payment_date
-                  ? new Date(customer.last_payment_date).toLocaleString([], {
-                      year: "numeric",
-                      month: "short",
-                      day: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
+                  ? new Date(customer.last_payment_date).toLocaleString('en-KE', {
+                      day: 'numeric',
+                      month: 'short',
+                      hour: '2-digit',
+                      minute: '2-digit'
                     })
                   : "No payments yet"
               }}
@@ -88,25 +87,32 @@
       <button :disabled="page === totalPages" @click="page++">Next</button>
     </div>
 
-    <!-- Add Customer Modal -->
-    <div v-if="showAddModal" class="modal" @keydown.esc="showAddModal = false">
-      <div class="modal-content" role="dialog" aria-modal="true" aria-label="Add new customer">
+    <!-- Add Customer Modal – NOW MATCHES DASHBOARD.VUE -->
+    <div v-if="showAddModal" class="modal-backdrop" @click="showAddModal = false">
+      <div class="modal-content" @click.stop>
         <h3>Add New Customer</h3>
 
-        <input v-model="newCustomer.name" type="text" placeholder="Name" />
-        <input v-model="newCustomer.phone" type="text" placeholder="Phone" />
+        <div class="input-group">
+          <label>Customer Name</label>
+          <input v-model="newCustomer.name" type="text" placeholder="Enter name" autofocus />
+        </div>
+
+        <div class="input-group">
+          <label>Phone Number <small>(optional)</small></label>
+          <input v-model="newCustomer.phone" type="text" placeholder="e.g. 0712345678" />
+        </div>
 
         <div class="modal-actions">
-          <button @click="saveCustomer">Save</button>
-          <button class="cancel" @click="showAddModal = false">Cancel</button>
+          <button @click="saveCustomer" class="btn primary">Save</button>
+          <button @click="showAddModal = false" class="btn cancel">Cancel</button>
         </div>
       </div>
     </div>
 
     <!-- Floating Add Button -->
-    <div class="fab">
-      <button @click="showAddModal = true" aria-label="Add customer">+</button>
-    </div>
+    <button class="fab" @click="showAddModal = true" aria-label="Add Customer">
+      <span class="material-symbols-outlined">add</span>
+    </button>
   </div>
 
   <!-- Bottom Navigation -->
@@ -128,7 +134,7 @@ const newCustomer = ref({ name: "", phone: "" });
 const API_BASE = import.meta.env.VITE_API_BASE;
 
 const page = ref(1);
-const pageSize = 6; // reduced to 6 per page
+const pageSize = 6;
 
 // --- Custom sort dropdown state
 const showSort = ref(false);
@@ -141,7 +147,7 @@ const sortOptions = [
 ];
 
 const currentSortLabel = computed(() => {
-  const found = sortOptions.find((o) => o.value === sortOption.value || o.value === sortOption);
+  const found = sortOptions.find((o) => o.value === sortOption.value);
   return found ? found.label : "Sort by";
 });
 
@@ -154,11 +160,9 @@ function selectSort(value) {
   showSort.value = false;
 }
 
-// close sort dropdown when clicking outside
+// Close sort dropdown when clicking outside
 function onDocClick(e) {
-  const el = sortWrapper.value;
-  if (!el) return;
-  if (!el.contains(e.target)) {
+  if (sortWrapper.value && !sortWrapper.value.contains(e.target)) {
     showSort.value = false;
   }
 }
@@ -172,7 +176,7 @@ onBeforeUnmount(() => {
   window.removeEventListener("click", onDocClick);
 });
 
-// --- Data loading / saving (logic preserved)
+// --- Data loading / saving
 async function loadCustomers() {
   try {
     const res = await fetch(`${API_BASE}/customers/`);
@@ -184,7 +188,7 @@ async function loadCustomers() {
 }
 
 async function saveCustomer() {
-  if (!newCustomer.value.name) return alert("Name required");
+  if (!newCustomer.value.name.trim()) return alert("Customer name is required");
 
   await fetch(`${API_BASE}/customers/`, {
     method: "POST",
@@ -198,11 +202,10 @@ async function saveCustomer() {
 }
 
 function outstanding(c) {
-  // keep existing behavior (guard for number types)
   return (parseFloat(c.total_debt || 0) - parseFloat(c.total_payments || 0)) || 0;
 }
 
-// --- Filtering / sorting / pagination (kept behavior)
+// --- Filtering / sorting / pagination
 const filteredCustomers = computed(() => {
   let list = customers.value.filter((c) =>
     c.name.toLowerCase().includes(search.value.toLowerCase())
@@ -210,13 +213,10 @@ const filteredCustomers = computed(() => {
 
   if (sortOption.value === "debt-desc")
     list.sort((a, b) => outstanding(b) - outstanding(a));
-
   if (sortOption.value === "debt-asc")
     list.sort((a, b) => outstanding(a) - outstanding(b));
-
   if (sortOption.value === "name-asc")
     list.sort((a, b) => a.name.localeCompare(b.name));
-
   if (sortOption.value === "name-desc")
     list.sort((a, b) => b.name.localeCompare(a.name));
 
@@ -233,9 +233,7 @@ const paginatedCustomers = computed(() => {
 });
 
 function avatar(name) {
-  return `https://ui-avatars.com/api/?name=${encodeURIComponent(
-    name
-  )}&background=1763cf&color=fff`;
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=1763cf&color=fff`;
 }
 
 function goToCustomer(id) {
@@ -257,12 +255,12 @@ function goToCustomer(id) {
   flex-direction: column;
 }
 
-/* CONTROLS (mobile-first stacked) */
+/* CONTROLS */
 .controls {
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
-  
+  margin-bottom: 1rem;
 }
 
 /* SEARCH */
@@ -270,79 +268,74 @@ function goToCustomer(id) {
   display: flex;
   align-items: center;
   background: #fff;
-  border: 1px solid #e2e8f0;
+  border: 1.5px solid #e2e8f0;
   border-radius: 0.75rem;
-  padding: 0.45rem 0.6rem;
+  padding: 0.7rem 0.9rem;
   box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-  min-width: 0;
 }
 
 .search-wrapper:focus-within {
   border-color: #1763cf;
-  box-shadow: 0 0 0 2px rgba(23,99,207,0.12);
+  box-shadow: 0 0 0 3px rgba(23,99,207,0.12);
 }
 
 .search-icon {
-  color: #1e293b;
-  font-size: 1.1rem;
-  margin-right: 0.2rem;
+  color: #64748b;
+  font-size: 1.3rem;
+  margin-right: 0.5rem;
 }
 
 .search-wrapper input {
   border: none;
   outline: none;
-  font-size: 0.9rem;
+  font-size: 1rem;
   font-weight: 500;
   background: transparent;
   color: #1e293b;
+  flex: 1;
 }
 
 .search-wrapper input::placeholder {
-  color: #1e293b;
-  font-weight: bold;
+  color: #94a3b8;
 }
 
-/* SORT (custom dropdown) */
+/* SORT DROPDOWN */
 .sort-wrapper {
   position: relative;
-  width: 58%;
 }
 
 .sort-display {
   width: 100%;
   background: #fff;
-  border: 1px solid #e2e8f0;
+  border: 1.5px solid #e2e8f0;
   border-radius: 0.75rem;
-  padding: 0.4rem 0.6rem;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: grey;
+  padding: 0.9rem 1rem;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #1e293b;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
   cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
 }
 
-.sort-display:focus {
-  outline: none;
-  border-color: grey;
-  box-shadow: 0 0 0 2px rgba(23,99,207,0.12);
+.sort-display[aria-expanded="true"] .dropdown-icon {
+  transform: rotate(180deg);
 }
 
 .dropdown-icon {
-  font-size: 1.2rem;
+  font-size: 1.4rem;
   color: #64748b;
   transition: transform 0.15s ease;
 }
 
-/* dropdown panel */
 .sort-dropdown {
   position: absolute;
   top: calc(100% + 8px);
   left: 0;
-  width: 100%;
-  background: #ffffff;
+  right: 0;
+  background: #fff;
   border: 1px solid #e2e8f0;
   border-radius: 0.75rem;
   box-shadow: 0 8px 20px rgba(0,0,0,0.08);
@@ -357,35 +350,29 @@ function goToCustomer(id) {
 }
 
 .sort-option {
-  padding: 0.55rem 0.75rem;
-  font-size: 0.7rem;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
   font-weight: 500;
   color: #1e293b;
+  cursor: pointer;
   transition: background 0.12s;
 }
 
-.sort-option:hover {
-  background: #f1f5f9;
-}
-
+.sort-option:hover { background: #f1f5f9; }
 .sort-option.active {
   background: #e8f0fe;
   color: #1763cf;
   font-weight: 700;
 }
 
-/* CUSTOMER LIST  */
-.customers {
-  margin-top: 0.1rem;
-}
-
+/* CUSTOMER LIST */
 .customer-list {
   list-style: none;
-  margin: 0 0.5rem;
   padding: 0;
+  margin: 0;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  gap: 0.75rem;
 }
 
 .customer-card {
@@ -393,44 +380,41 @@ function goToCustomer(id) {
   align-items: center;
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 0.75rem;
-  padding: 0.6rem 0.75rem;
-  margin: 0.4rem 0;
-  width: 100%;
-  max-width: 720px;
+  border-radius: 1rem;
+  padding: 1rem;
   box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-  transition: all 0.12s ease;
+  transition: all 0.15s ease;
   cursor: pointer;
 }
 
 .customer-card:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 6px rgba(23,99,207,0.08);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(23,99,207,0.1);
 }
 
 .avatar img {
-  width: 2rem; 
-  height: 2rem;
-  border-radius: 9999px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
   object-fit: cover;
 }
 
 .info {
   flex: 1;
-  margin-left: 0.5rem;
+  margin-left: 1rem;
 }
 
 .info h3 {
-  font-size: 0.9rem;
+  font-size: 1.1rem;
   font-weight: 600;
   color: #1e293b;
-  margin: 0;
+  margin: 0 0 0.25rem;
 }
 
 .amount {
-  font-size: 0.7rem;
-  margin-top: 0.18rem;
-  font-weight: 500;
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0.25rem 0;
 }
 
 .red { color: #dc2626; }
@@ -438,7 +422,8 @@ function goToCustomer(id) {
 
 .small {
   color: #64748b;
-  font-size: 0.7rem;
+  font-size: 0.875rem;
+  margin: 0.25rem 0 0;
 }
 
 /* PAGINATION */
@@ -446,18 +431,20 @@ function goToCustomer(id) {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  margin: 1rem 0 5rem;
+  gap: 1rem;
+  margin: 2rem 0 6rem;
+  font-weight: 600;
 }
 
 .pagination button {
   background: #1763cf;
   color: white;
   border: none;
-  border-radius: 0.5rem;
-  padding: 0.42rem 0.9rem;
-  font-weight: 500;
+  border-radius: 0.75rem;
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
   cursor: pointer;
+  transition: background 0.2s;
 }
 
 .pagination button:hover:not(:disabled) {
@@ -469,98 +456,130 @@ function goToCustomer(id) {
   cursor: not-allowed;
 }
 
-/* MODAL */
-.modal {
+/* MODAL – EXACT SAME AS DASHBOARD.VUE */
+.modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(17,24,33,0.55);
+  background: rgba(0,0,0,0.5);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 80;
-  padding: 0.1rem;
+  padding: 1rem;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
 }
 
 .modal-content {
-  background: #ffffff;
-  width: 90%;
-  max-width: 400px;
-  border-radius: 0.9rem;
-  padding: 1.2rem 1.4rem;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+  background: white;
+  border-radius: 1.25rem;
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+  padding: 1.5rem;
 }
 
 .modal-content h3 {
-  font-size: 1.15rem;
-  font-weight: 600;
+  margin: 0 0 1.5rem;
+  text-align: center;
+  font-size: 1.3rem;
+  font-weight: 700;
   color: #1e293b;
-  margin-bottom: 0.8rem;
 }
 
-.modal-content input {
+.input-group {
+  margin-bottom: 1.5rem;
+}
+
+.input-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #475569;
+  font-weight: 500;
+}
+
+.input-group small {
+  color: #64748b;
+  font-weight: normal;
+}
+
+.input-group input {
   width: 100%;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.6rem;
-  padding: 0.55rem;
-  font-size: 0.95rem;
-  margin-bottom: 0.7rem;
+  padding: 0.9rem;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 0.75rem;
+  font-size: 1.1rem;
+  box-sizing: border-box;
+}
+
+.input-group input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
 }
 
 .modal-actions {
   display: flex;
-  justify-content: flex-end;
-  gap: 0.5rem;
+  gap: 1rem;
+  margin-top: 1.5rem;
 }
 
-.modal-actions button {
+.btn {
+  flex: 1;
+  padding: 0.9rem;
   border: none;
-  border-radius: 0.5rem;
-  padding: 0.45rem 1rem;
-  font-weight: 500;
+  border-radius: 0.75rem;
+  font-weight: 600;
   cursor: pointer;
+  transition: all 0.2s;
 }
 
-.modal-actions button:not(.cancel) {
-  background: #1763cf;
+.btn.primary {
+  background: #059669;
   color: white;
 }
 
-.modal-actions .cancel {
+.btn.cancel {
   background: #e2e8f0;
-  color: #1e293b;
+  color: #475569;
 }
 
 /* FAB */
 .fab {
   position: fixed;
-  bottom: 6rem;
+  bottom: 5rem;
   right: 1.5rem;
-  z-index: 70;
-}
-.fab button {
-  width: 2.2rem;
-  height: 2.5rem;
-  border-radius: 500px;
-  background: #1763cf;
+  width: 56px;
+  height: 56px;
+  background: #059669;
   color: white;
   border: none;
-  font-size: 1.6rem;
-  box-shadow: 0 4px 12px rgba(23,99,207,0.3);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(5,150,105,0.4);
   cursor: pointer;
+  z-index: 90;
+  transition: transform 0.2s;
 }
 
-/* Responsive: side-by-side on larger screens */
+.fab:hover {
+  transform: scale(1.1);
+}
+
+/* Responsive */
 @media (min-width: 640px) {
   .controls {
     flex-direction: row;
     align-items: center;
-    justify-content: space-between;
-  }
-  .sort-wrapper {
-    width: 36%;
   }
   .search-wrapper {
-    width: calc(64% - 0.6rem);
+    width: 65%;
+  }
+  .sort-wrapper {
+    width: 34%;
   }
 }
 </style>
