@@ -190,19 +190,23 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, onUnmounted } from "vue";
+import { ref, onMounted, computed, onUnmounted, watch } from "vue";
 import { useRouter } from "vue-router";
-import { fetchCustomers, addCustomer, addTransaction } from "@/services/api";
 import TopNav from "@/components/TopNav.vue";
 import BottomNav from "@/components/BottomNav.vue";
+import { useCustomerStore } from "@/stores/customers";
+import { useTransactionStore } from "@/stores/transactions";
 
 const router = useRouter();
 
+const customerStore = useCustomerStore();
+const transactionStore = useTransactionStore();
+
 const customers = ref([]);
 const transactions = ref([]);
+
 const totalDebt = ref(0);
 const totalPayments = ref(0);
-const API_BASE = import.meta.env.VITE_API_BASE;
 
 const showAddCustomer = ref(false);
 const showAddTransaction = ref(false);
@@ -232,74 +236,103 @@ function closeTransactionModal() {
   showTypeDropdown.value = false;
 }
 
-async function loadData() {
-  const data = await fetchCustomers();
-  customers.value = data.map(c => ({
-    ...c,
-    total_debt: parseFloat(c.total_debt || 0),
-    total_payments: parseFloat(c.total_payments || 0),
-  }));
-  totalDebt.value = customers.value.reduce((s, c) => s + c.total_debt, 0);
-  totalPayments.value = customers.value.reduce((s, c) => s + c.total_payments, 0);
-}
-
-async function fetchTransactions() {
-  const res = await fetch(`${API_BASE}/transactions/`);
-  if (!res.ok) return;
-  const data = await res.json();
-  transactions.value = data.map(tx => ({
-    id: tx.id,
-    customer_id: tx.customer || null,
-    customer_name: tx.customer_name || "Unknown",
-    transaction_type: tx.transaction_type || "unknown",
-    amount: parseFloat(tx.total_amount || tx.amount || 0),
-    description: tx.description || "",
-    date: tx.date || tx.created_at || new Date().toISOString(),
-  }));
-}
-
 function goToCustomer(id) {
   if (!id) return alert("Customer not found for this transaction.");
   router.push(`/customer/${id}`);
 }
 
+/* -------------------------
+   Data loading (offline-first)
+   ------------------------- */
+async function loadLocalCustomers() {
+  // try store's load (it should handle online refresh internally)
+  try {
+    await customerStore.loadCustomers();
+    customers.value = customerStore.customers;
+  } catch {
+    customers.value = await customerStore.loadCustomers() || customerStore.customers;
+  }
+}
+
+async function loadLocalTransactions() {
+  // load all transactions from store
+  await transactionStore.loadTransactions();
+  // normalize to the shape this component expects
+  transactions.value = transactionStore.transactions.map(t => ({
+    id: t.id,
+    customer_id: t.customer_id ?? t.customerId ?? t.customerId,
+    customer_name: (customers.value.find(c => c.id === (t.customer_id ?? t.customerId)) || {}).name || "Unknown",
+    transaction_type: t.transaction_type,
+    amount: Number(t.total_amount ?? t.amount ?? 0),
+    description: t.description ?? "",
+    date: t.date ?? (t.created_at || new Date().toISOString())
+  }));
+  // recompute totals
+  computeTotals();
+}
+
+function computeTotals() {
+  totalDebt.value = transactions.value
+    .filter(t => t.transaction_type === "debt")
+    .reduce((s, t) => s + Number(t.amount), 0);
+
+  totalPayments.value = transactions.value
+    .filter(t => t.transaction_type === "payment")
+    .reduce((s, t) => s + Number(t.amount), 0);
+}
+
+/* -------------------------
+   Submit handlers (local only)
+   ------------------------- */
 async function submitCustomer() {
   if (!newCustomer.value.name.trim()) return alert("Customer name is required.");
-  await addCustomer(newCustomer.value);
+  await customerStore.addCustomer({ name: newCustomer.value.name.trim(), phone: newCustomer.value.phone || "" });
   newCustomer.value = { name: "", phone: "" };
   showAddCustomer.value = false;
-  await loadData();
+  await loadLocalCustomers();
+  await loadLocalTransactions();
 }
 
 async function submitTransaction() {
   if (!transaction.value.customerId || !transaction.value.type)
     return alert("Please fill all fields.");
 
-  await addTransaction(transaction.value.customerId, transaction.value.type, {
-    amount: transaction.value.amount,
-    description: transaction.value.description,
-  });
+  if (transaction.value.type === "payment") {
+    await transactionStore.addPayment(transaction.value.customerId, transaction.value.amount);
+  } else {
+    // addDebt expects items array; we will use a single-line item with amount and quantity 1
+    await transactionStore.addDebt(transaction.value.customerId, [{ id: Date.now(), quantity: 1, price: Number(transaction.value.amount) }]);
+  }
 
   closeTransactionModal();
   transaction.value = { customerId: "", type: "", amount: null, description: "" };
-  await loadData();
-  await fetchTransactions();
+
+  await loadLocalTransactions();
+  // reload customers too (so any computed fields derived from customers are fresh)
+  await loadLocalCustomers();
+}
+
+/* -------------------------
+   Dropdown outside click close
+   ------------------------- */
+function handleDocClick(e) {
+  if (!e.target.closest(".custom-select-wrapper")) {
+    showCustomerDropdown.value = false;
+    showTypeDropdown.value = false;
+  }
 }
 
 onMounted(async () => {
-  await loadData();
-  await fetchTransactions();
+  document.addEventListener("click", handleDocClick);
+  await loadLocalCustomers();
+  await loadLocalTransactions();
+});
 
-  const closeAllDropdowns = (e) => {
-    if (!e.target.closest('.custom-select-wrapper')) {
-      showCustomerDropdown.value = false;
-      showTypeDropdown.value = false;
-    }
-  };
-  document.addEventListener('click', closeAllDropdowns);
-  onUnmounted(() => document.removeEventListener('click', closeAllDropdowns));
+onUnmounted(() => {
+  document.removeEventListener("click", handleDocClick);
 });
 </script>
+
 
 <style scoped>
 .dashboard {

@@ -1,25 +1,16 @@
 <template>
   <div class="transactions-page">
-    <!-- Top Navigation -->
     <TopNav />
 
-    <!-- Search -->
     <section class="search-section">
       <div class="search-bar">
         <span class="material-symbols-outlined search-icon">search</span>
-        <input
-          v-model="searchQuery"
-          type="text"
-          placeholder="Search by customer..."
-        />
+        <input v-model="searchQuery" type="text" placeholder="Search by customer..." />
       </div>
     </section>
 
-    <!-- Transactions -->
     <section class="transactions-section">
-      <p v-if="filteredTransactions.length === 0" class="empty-text">
-        No transactions found.
-      </p>
+      <p v-if="filteredTransactions.length === 0" class="empty-text">No transactions found.</p>
 
       <div
         v-for="tx in filteredTransactions"
@@ -28,14 +19,12 @@
         @click="goToCustomer(tx.customer_id)"
       >
         <div class="tx-info">
-          <div
-            class="icon"
-            :class="tx.transaction_type === 'payment' ? 'in' : 'out'"
-          >
+          <div class="icon" :class="tx.transaction_type === 'payment' ? 'in' : 'out'">
             <span class="material-symbols-outlined">
               {{ tx.transaction_type === "payment" ? "arrow_downward" : "arrow_upward" }}
             </span>
           </div>
+
           <div class="tx-details">
             <p class="name">{{ tx.customer_name }}</p>
             <p class="desc">{{ tx.description || "No description" }}</p>
@@ -43,44 +32,39 @@
         </div>
 
         <div class="tx-meta">
-          <p
-            class="amount"
-            :class="tx.transaction_type === 'payment' ? 'in' : 'out'"
-          >
-            {{ tx.transaction_type === "payment" ? "+" : "-" }}
-            {{ tx.amount.toFixed(2) }} Ksh
+          <p class="amount" :class="tx.transaction_type === 'payment' ? 'in' : 'out'">
+            {{ tx.transaction_type === "payment" ? "+" : "-" }} {{ formatAmount(tx.amount) }} Ksh
           </p>
+
           <p class="date">
-            {{ new Date(tx.date).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) }}
+            {{
+              new Date(tx.date).toLocaleString([], {
+                month: "short",
+                day: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              })
+            }}
           </p>
         </div>
       </div>
     </section>
 
-    <!-- Floating Add Button -->
     <button class="fab" @click="showAddTransaction = true">
       <span class="material-symbols-outlined">add</span>
     </button>
 
-    <!-- Add Transaction Modal -->
-    <div
-      v-if="showAddTransaction"
-      class="modal-backdrop"
-      @click="showAddTransaction = false"
-    >
+    <!-- Add Modal -->
+    <div v-if="showAddTransaction" class="modal-backdrop" @click="closeAddModal">
       <div class="modal-content" @click.stop>
         <h3>Add Transaction</h3>
 
-        <!-- CUSTOMER CUSTOM DROPDOWN -->
+        <!-- CUSTOMER -->
         <div class="input-group">
           <label>Customer</label>
           <div class="custom-select-wrapper">
-            <button
-              class="custom-select-display"
-              @click="showCustomerDropdown = !showCustomerDropdown"
-              :aria-expanded="showCustomerDropdown"
-            >
-              <span>{{ selectedCustomerName || 'Select customer' }}</span>
+            <button class="custom-select-display" @click="showCustomerDropdown = !showCustomerDropdown">
+              <span>{{ selectedCustomerName || "Select customer" }}</span>
               <span class="material-symbols-outlined dropdown-icon">expand_more</span>
             </button>
 
@@ -89,8 +73,7 @@
                 v-for="c in customers"
                 :key="c.id"
                 class="custom-select-option"
-                :class="{ active: transaction.customerId === c.id }"
-                @click="transaction.customerId = c.id; showCustomerDropdown = false"
+                @click="selectCustomer(c.id)"
               >
                 {{ c.name }}
               </div>
@@ -98,74 +81,51 @@
           </div>
         </div>
 
-        <!-- TYPE CUSTOM DROPDOWN -->
+        <!-- TYPE -->
         <div class="input-group">
           <label>Transaction Type</label>
           <div class="custom-select-wrapper">
-            <button
-              class="custom-select-display"
-              @click="showTypeDropdown = !showTypeDropdown"
-              :aria-expanded="showTypeDropdown"
-            >
-              <span>{{ transaction.type ? (transaction.type === 'payment' ? 'Payment' : 'Debt') : 'Select type' }}</span>
+            <button class="custom-select-display" @click="showTypeDropdown = !showTypeDropdown">
+              <span>{{ transaction.type ? (transaction.type === "payment" ? "Payment" : "Debt") : "Select type" }}</span>
               <span class="material-symbols-outlined dropdown-icon">expand_more</span>
             </button>
 
             <div v-if="showTypeDropdown" class="custom-select-dropdown">
-              <div
-                class="custom-select-option"
-                :class="{ active: transaction.type === 'payment' }"
-                @click="transaction.type = 'payment'; showTypeDropdown = false"
-              >
+              <div class="custom-select-option" @click="setType('payment')">
                 Payment
               </div>
-              <div
-                class="custom-select-option"
-                :class="{ active: transaction.type === 'debt' }"
-                @click="transaction.type = 'debt'; showTypeDropdown = false"
-              >
+              <div class="custom-select-option" @click="setType('debt')">
                 Debt
               </div>
             </div>
           </div>
         </div>
 
+        <!-- PAYMENT INPUT -->
         <div v-if="transaction.type === 'payment'" class="input-group">
           <label>Amount (Ksh)</label>
-          <input
-            type="number"
-            v-model.number="transaction.amount"
-            placeholder="e.g. 500"
-          />
+          <input type="number" v-model.number="transaction.amount" placeholder="e.g. 500" />
         </div>
 
+        <!-- DEBT INPUT -->
         <div v-if="transaction.type === 'debt'">
           <div class="input-group">
             <label>Description <small>(optional)</small></label>
-            <input
-              type="text"
-              v-model="transaction.description"
-              placeholder="e.g. 2kg sugar"
-            />
+            <input type="text" v-model="transaction.description" placeholder="e.g. 2kg sugar" />
           </div>
           <div class="input-group">
             <label>Amount (Ksh)</label>
-            <input
-              type="number"
-              v-model.number="transaction.amount"
-              placeholder="e.g. 300"
-            />
+            <input type="number" v-model.number="transaction.amount" placeholder="e.g. 300" />
           </div>
         </div>
 
         <div class="modal-actions">
           <button @click="submitTransaction" class="btn primary">Save</button>
-          <button @click="showAddTransaction = false" class="btn cancel">Cancel</button>
+          <button @click="closeAddModal" class="btn cancel">Cancel</button>
         </div>
       </div>
     </div>
 
-    <!-- Bottom Navigation -->
     <BottomNav />
   </div>
 </template>
@@ -173,79 +133,126 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
-import { fetchCustomers, addTransaction } from "@/services/api";
 import TopNav from "@/components/TopNav.vue";
 import BottomNav from "@/components/BottomNav.vue";
+import { fetchCustomers } from "@/services/api";
+import { db } from "@/db";
+import { useTransactionStore } from "@/stores/transactions";
+import { useCustomerStore } from "@/stores/customers";
 
 const router = useRouter();
-const API_BASE = import.meta.env.VITE_API_BASE;
+const transactionStore = useTransactionStore();
+const customerStore = useCustomerStore();
 
 const customers = ref([]);
 const transactions = ref([]);
 const searchQuery = ref("");
 const showAddTransaction = ref(false);
 
-// Custom dropdown states
 const showCustomerDropdown = ref(false);
 const showTypeDropdown = ref(false);
 
 const transaction = ref({ customerId: "", type: "", amount: null, description: "" });
 
+/* ---------- Helper: Safe amount formatting ---------- */
+function formatAmount(value) {
+  const num = Number(value ?? (value === 0 ? 0 : NaN));
+  return isNaN(num) ? "0.00" : num.toFixed(2);
+}
+
+/* ---------- Computeds ---------- */
 const selectedCustomerName = computed(() => {
-  const customer = customers.value.find(c => c.id === transaction.value.customerId);
-  return customer ? customer.name : '';
+  const c = customers.value.find(c => c.id === transaction.value.customerId);
+  return c ? c.name : "";
+});
+
+const mappedTransactions = computed(() => {
+  // ensure we always expose `.amount` as a number for template
+  return transactions.value.map(t => ({
+    ...t,
+    amount: Number(t.total_amount ?? t.amount ?? 0),
+    customer_name: customers.value.find(c => c.id === (t.customer_id ?? t.customerId))?.name || "Unknown",
+  }));
 });
 
 const filteredTransactions = computed(() => {
-  const q = searchQuery.value.toLowerCase();
-  return transactions.value.filter(
-    (tx) =>
-      tx.customer_name.toLowerCase().includes(q) ||
-      (tx.description && tx.description.toLowerCase().includes(q))
+  const q = (searchQuery.value || "").toLowerCase();
+  return mappedTransactions.value.filter(tx =>
+    tx.customer_name.toLowerCase().includes(q) ||
+    (tx.description && tx.description.toLowerCase().includes(q))
   );
 });
 
+/* ---------- Navigation ---------- */
 function goToCustomer(id) {
-  if (!id) return alert("Customer not found for this transaction.");
+  if (!id) return alert("Customer not found");
   router.push(`/customer/${id}`);
 }
 
-async function fetchTransactions() {
-  const res = await fetch(`${API_BASE}/transactions/`);
-  if (!res.ok) throw new Error("Failed to fetch transactions");
-  const data = await res.json();
-  transactions.value = data.map((tx) => ({
-    id: tx.id,
-    customer_id: tx.customer || null,
-    customer_name: tx.customer_name || "Unknown",
-    transaction_type: tx.transaction_type || "unknown",
-    amount: parseFloat(tx.total_amount || tx.amount || 0),
-    description: tx.description || "",
-    date: tx.date || tx.created_at || new Date().toISOString(),
-  }));
-}
-
+/* ---------- Loaders (offline-first) ---------- */
 async function loadCustomers() {
-  customers.value = await fetchCustomers();
+  try {
+    const data = await fetchCustomers();
+    customers.value = data;
+    // mirror to local
+    await db.customers.clear();
+    await db.customers.bulkPut(data);
+    // also update store if present
+    await customerStore.loadCustomers?.();
+  } catch {
+    customers.value = await db.customers.toArray();
+  }
 }
 
-async function submitTransaction() {
-  if (!transaction.value.customerId || !transaction.value.type)
-    return alert("Please fill all fields.");
-  await addTransaction(transaction.value.customerId, transaction.value.type, {
-    amount: transaction.value.amount,
-    description: transaction.value.description,
-  });
+async function loadTransactions() {
+  // load raw rows from Dexie and normalize in computed
+  transactions.value = await db.transactions.orderBy('date').reverse().toArray();
+}
+
+/* ---------- Actions (use transaction store so customer totals update) ---------- */
+function selectCustomer(id) {
+  transaction.value.customerId = id;
+  showCustomerDropdown.value = false;
+}
+
+function setType(t) {
+  transaction.value.type = t;
+  showTypeDropdown.value = false;
+}
+
+function closeAddModal() {
   showAddTransaction.value = false;
   transaction.value = { customerId: "", type: "", amount: null, description: "" };
-  await fetchTransactions();
 }
 
+/* Submit — call transactionStore methods so customer totals get updated */
+async function submitTransaction() {
+  if (!transaction.value.customerId || !transaction.value.type) return alert("Fill all fields.");
+
+  if (transaction.value.type === "payment") {
+    await transactionStore.addPayment(transaction.value.customerId, Number(transaction.value.amount || 0));
+  } else {
+    // build a single-item representation (clean) — transactionStore.addDebt expects itemList
+    const itemList = [{
+      id: Date.now(),
+      name: transaction.value.description || "Manual entry",
+      quantity: 1,
+      price: Number(transaction.value.amount || 0)
+    }];
+    await transactionStore.addDebt(transaction.value.customerId, itemList);
+  }
+
+  // reload view
+  await loadTransactions();
+  await loadCustomers();
+  closeAddModal();
+}
+
+/* ---------- Lifecycle ---------- */
 onMounted(async () => {
   await loadCustomers();
-  await fetchTransactions();
+  await loadTransactions();
 
-  // Close dropdowns when clicking outside
   const closeDropdowns = (e) => {
     if (!e.target.closest('.custom-select-wrapper')) {
       showCustomerDropdown.value = false;
@@ -257,8 +264,11 @@ onMounted(async () => {
 });
 </script>
 
+
+
+
+
 <style scoped>
-/* === ALL YOUR ORIGINAL STYLES (unchanged) === */
 .transactions-page {
   font-family: "Inter", sans-serif;
   background: #f9f9f9;
@@ -303,7 +313,7 @@ onMounted(async () => {
 .input-group small { color: #64748b; font-weight: normal; }
 .input-group input { width: 100%; padding: 0.9rem; border: 1.5px solid #e2e8f0; border-radius: 0.75rem; font-size: 1.1rem; box-sizing: border-box; }
 .modal-actions { display: flex; gap: 1rem; margin-top: 1.5rem; }
-.btn { flex: 1; パadding: 0.9rem; border: none; border-radius: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.btn { flex: 1; padding: 0.9rem; border: none; border-radius: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
 .btn.primary { background: #059669; color: white; }
 .btn.cancel { background: #e2e8f0; color: #475569; }
 

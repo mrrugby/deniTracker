@@ -9,10 +9,16 @@
       </button>
     </header>
 
-    <!-- Loading / Error / Empty -->
+    <!-- Loading -->
     <div v-if="store.loading" class="empty-state">Loading items…</div>
-    <div v-if="store.error" class="empty-state error">{{ store.error }}</div>
-    <div v-if="!store.loading && !store.error && store.items.length === 0" class="empty-state">
+
+    <!-- Soft offline notice -->
+    <div v-if="store.error" class="offline-warning">
+      Working offline — online updates unavailable.
+    </div>
+
+    <!-- Empty State (only show if not loading and items list is empty) -->
+    <div v-if="!store.loading && store.items.length === 0" class="empty-state">
       No stock items yet.<br>Add your first product!
     </div>
 
@@ -38,7 +44,7 @@
       </div>
     </div>
 
-    <!--  -->
+    <!-- Modal -->
     <teleport to="body">
       <div v-if="showModal" class="modal-backdrop" @click.self="closeModal">
         <div class="modal-content">
@@ -101,7 +107,6 @@ const form = reactive({
   is_active: true,
 })
 
-// Auto-format name to Title Case (e.g. "milk 2litres" → "Milk 2Litres")
 function toTitleCase(str) {
   return str
     .toLowerCase()

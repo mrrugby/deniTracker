@@ -124,21 +124,25 @@ import { ref, onMounted, onBeforeUnmount, computed } from "vue";
 import { useRouter } from "vue-router";
 import TopNav from "@/components/TopNav.vue";
 import BottomNav from "@/components/BottomNav.vue";
+import { useCustomerStore } from "@/stores/customers";
 
-const customers = ref([]);
+const router = useRouter();
+const customerStore = useCustomerStore();
+
+const customers = computed(() => customerStore.customers);
 const showAddModal = ref(false);
 const search = ref("");
 const sortOption = ref("debt-desc");
-const router = useRouter();
-const newCustomer = ref({ name: "", phone: "" });
-const API_BASE = import.meta.env.VITE_API_BASE;
 
 const page = ref(1);
 const pageSize = 6;
 
-// --- Custom sort dropdown state
+const newCustomer = ref({ name: "", phone: "" });
+
+// Dropdown logic stays the same
 const showSort = ref(false);
 const sortWrapper = ref(null);
+
 const sortOptions = [
   { value: "debt-desc", label: "Debt: High to Low" },
   { value: "debt-asc", label: "Debt: Low to High" },
@@ -147,78 +151,63 @@ const sortOptions = [
 ];
 
 const currentSortLabel = computed(() => {
-  const found = sortOptions.find((o) => o.value === sortOption.value);
-  return found ? found.label : "Sort by";
+  const found = sortOptions.find(o => o.value === sortOption.value);
+  return found?.label ?? "Sort";
 });
 
 function toggleSort() {
   showSort.value = !showSort.value;
 }
-
-function selectSort(value) {
-  sortOption.value = value;
+function selectSort(v) {
+  sortOption.value = v;
   showSort.value = false;
 }
 
-// Close sort dropdown when clicking outside
 function onDocClick(e) {
-  if (sortWrapper.value && !sortWrapper.value.contains(e.target)) {
-    showSort.value = false;
-  }
+  if (!sortWrapper.value?.contains(e.target)) showSort.value = false;
 }
 
-onMounted(() => {
+onMounted(async () => {
   window.addEventListener("click", onDocClick);
-  loadCustomers();
+
+  // load customers from store (auto offline/online behavior)
+  await customerStore.loadCustomers();
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener("click", onDocClick);
 });
 
-// --- Data loading / saving
-async function loadCustomers() {
-  try {
-    const res = await fetch(`${API_BASE}/customers/`);
-    const data = await res.json();
-    customers.value = data;
-  } catch (error) {
-    console.error("Error loading customers:", error);
-  }
-}
-
+// LOCAL ONLY save
 async function saveCustomer() {
   if (!newCustomer.value.name.trim()) return alert("Customer name is required");
-
-  await fetch(`${API_BASE}/customers/`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(newCustomer.value),
+  
+  await customerStore.addCustomer({
+    name: newCustomer.value.name.trim(),
+    phone: newCustomer.value.phone || "",
+    total_debt: 0,
+    total_payments: 0,
+    last_payment_date: null
   });
 
-  showAddModal.value = false;
   newCustomer.value = { name: "", phone: "" };
-  await loadCustomers();
+  showAddModal.value = false;
 }
 
+// UI Calculations
 function outstanding(c) {
-  return (parseFloat(c.total_debt || 0) - parseFloat(c.total_payments || 0)) || 0;
+  return (Number(c.total_debt || 0) - Number(c.total_payments || 0)) || 0;
 }
 
-// --- Filtering / sorting / pagination
 const filteredCustomers = computed(() => {
-  let list = customers.value.filter((c) =>
+  let list = customers.value.filter(c =>
     c.name.toLowerCase().includes(search.value.toLowerCase())
   );
 
-  if (sortOption.value === "debt-desc")
-    list.sort((a, b) => outstanding(b) - outstanding(a));
-  if (sortOption.value === "debt-asc")
-    list.sort((a, b) => outstanding(a) - outstanding(b));
-  if (sortOption.value === "name-asc")
-    list.sort((a, b) => a.name.localeCompare(b.name));
-  if (sortOption.value === "name-desc")
-    list.sort((a, b) => b.name.localeCompare(a.name));
+  if (sortOption.value === "debt-desc") list.sort((a, b) => outstanding(b) - outstanding(a));
+  if (sortOption.value === "debt-asc") list.sort((a, b) => outstanding(a) - outstanding(b));
+  if (sortOption.value === "name-asc") list.sort((a, b) => a.name.localeCompare(b.name));
+  if (sortOption.value === "name-desc") list.sort((a, b) => b.name.localeCompare(a.name));
 
   return list;
 });
@@ -240,6 +229,7 @@ function goToCustomer(id) {
   router.push(`/customer/${id}`);
 }
 </script>
+
 
 <style scoped>
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");

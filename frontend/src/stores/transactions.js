@@ -1,5 +1,5 @@
-import { defineStore } from "pinia"
-import { db } from "@/db"
+import { defineStore } from "pinia";
+import { db } from "@/db";
 
 export const useTransactionStore = defineStore("transactions", {
   state: () => ({
@@ -8,64 +8,65 @@ export const useTransactionStore = defineStore("transactions", {
 
   actions: {
     async loadTransactions() {
-      this.transactions = await db.transactions.toArray()
+      this.transactions = await db.transactions.toArray();
+    },
+
+    async getCustomerTransactions(customerId) {
+      return await db.transactions
+        .where("customer_id")
+        .equals(customerId)
+        .reverse()
+        .sortBy("date");
     },
 
     async addDebt(customerId, items) {
-      const transactionId = await db.transactions.add({
-        customerId,
-        transaction_type: "debt",
-        date: new Date().toISOString(),
-      })
+      const total = items.reduce(
+        (acc, i) => acc + i.price * i.quantity,
+        0
+      );
 
-      // save each item
-      for (const i of items) {
-        await db.transaction_items.add({
-          transactionId,
-          itemId: i.id,
+      const transactionId = await db.transactions.add({
+        customer_id: customerId,
+        transaction_type: "debt",
+        total_amount: total,
+        date: new Date().toISOString(),
+        items: items.map(i => ({
+          item: i.id,
           quantity: i.quantity,
-          unit_price: i.price,
-        })
-      }
-      await this.loadTransactions()
+          price: i.price
+        }))
+      });
+
+      await this.loadTransactions();
+      return transactionId;
     },
 
     async addPayment(customerId, amount) {
       await db.transactions.add({
-        customerId,
+        customer_id: customerId,
         transaction_type: "payment",
-        amount,
+        total_amount: parseFloat(amount),
         date: new Date().toISOString(),
-      })
-      await this.loadTransactions()
+      });
+
+      await this.loadTransactions();
     },
 
     async getCustomerBalance(customerId) {
-      const transactions = await db.transactions
-        .where("customerId")
-        .equals(customerId)
-        .toArray()
+      const transactions = await this.getCustomerTransactions(customerId);
 
-      let totalDebt = 0
-      let totalPayments = 0
+      let totalDebt = 0;
+      let totalPayments = 0;
 
       for (const t of transactions) {
         if (t.transaction_type === "debt") {
-          const items = await db.transaction_items
-            .where("transactionId")
-            .equals(t.id)
-            .toArray()
-          const sum = items.reduce(
-            (acc, i) => acc + i.unit_price * i.quantity,
-            0
-          )
-          totalDebt += sum
+          totalDebt += t.total_amount;
         } else if (t.transaction_type === "payment") {
-          totalPayments += t.amount || 0
+          totalPayments += t.total_amount;
         }
       }
 
-      return totalDebt - totalPayments
+      return totalDebt - totalPayments;
     },
   },
-})
+});

@@ -8,23 +8,23 @@
         <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
       </button>
       <h1>{{ customer?.name || 'Customer' }}</h1>
-      <div class="spacer"></div> <!-- keeps title centered -->
+      <div class="spacer"></div>
     </header>
 
     <!-- Balance Summary -->
     <section class="summary">
       <div class="balance">
         <span>Total Debt</span>
-        <strong class="debt">{{ parseFloat(customer?.total_debt || 0).toFixed(2) }} Ksh</strong>
+        <strong class="debt">{{ totalDebt.toFixed(2) }} Ksh</strong>
       </div>
       <div class="balance">
         <span>Total Paid</span>
-        <strong class="paid">{{ parseFloat(customer?.total_payments || 0).toFixed(2) }} Ksh</strong>
+        <strong class="paid">{{ totalPayments.toFixed(2) }} Ksh</strong>
       </div>
       <div class="balance highlight">
         <span>Outstanding</span>
         <strong class="outstanding">
-          {{ (parseFloat(customer?.total_debt || 0) - parseFloat(customer?.total_payments || 0)).toFixed(2) }} Ksh
+          {{ (totalDebt - totalPayments).toFixed(2) }} Ksh
         </strong>
       </div>
     </section>
@@ -54,11 +54,11 @@
 
         <div class="details">
           <div class="title">
-            {{ t.transaction_type === 'debt' ? 'Credit Sale' : 'Payment Received' }}
+            {{ t.transaction_type === 'debt' ? 'Deni/Debt' : 'Payment Received' }}
           </div>
           <div class="amount" :class="t.transaction_type">
             {{ t.transaction_type === 'debt' ? '+' : '-' }}
-            {{ parseFloat(t.total_amount || 0).toLocaleString(undefined, {minimumFractionDigits: 2}) }} Ksh
+            {{ Number(t.total_amount || t.amount || 0).toLocaleString(undefined, {minimumFractionDigits: 2}) }} Ksh
           </div>
           <div class="description" v-if="t.description">{{ t.description }}</div>
         </div>
@@ -68,19 +68,19 @@
             {{ t.transaction_type === 'debt' ? 'Unpaid' : 'Paid' }}
           </span>
           <div class="date">
-  {{ new Date(t.date).toLocaleDateString('en-KE', {
-    day: 'numeric',
-    month: 'short',
-    hour: 'numeric',
-    minute: '2-digit'
-  }) }}
-</div>
+            {{ new Date(t.date).toLocaleDateString('en-KE', {
+                day: 'numeric',
+                month: 'short',
+                hour: 'numeric',
+                minute: '2-digit'
+            }) }}
+          </div>
         </div>
       </div>
     </section>
 
     <!-- Modals -->
-    <div v-if="showPaymentModal || showDebtModal" class="modal-backdrop" @click="showPaymentModal = showDebtModal = false">
+    <div v-if="showPaymentModal || showDebtModal" class="modal-backdrop" @click="closeModals">
       <div class="modal" @click.stop>
         <!-- Payment Modal -->
         <div v-if="showPaymentModal">
@@ -88,7 +88,7 @@
           <input v-model.number="paymentAmount" type="number" placeholder="Enter amount in Ksh" autofocus />
           <div class="modal-actions">
             <button @click="submitPayment" class="btn primary">Save Payment</button>
-            <button @click="showPaymentModal = false" class="btn cancel">Cancel</button>
+            <button @click="closeModals" class="btn cancel">Cancel</button>
           </div>
         </div>
 
@@ -112,7 +112,7 @@
             <button @click="submitDebt" class="btn primary" :disabled="computedTotal === 0">
               Record Debt
             </button>
-            <button @click="showDebtModal = false" class="btn cancel">Cancel</button>
+            <button @click="closeModals" class="btn cancel">Cancel</button>
           </div>
         </div>
       </div>
@@ -125,55 +125,146 @@
 <script setup>
 import { ref, onMounted, computed } from "vue";
 import { useRoute } from "vue-router";
-import { fetchItems, addTransaction } from "@/services/api";
+
 import TopNav from "@/components/TopNav.vue";
 import BottomNav from "@/components/BottomNav.vue";
 
+// Stores
+import { useCustomerStore } from "@/stores/customers";
+import { useTransactionStore } from "@/stores/transactions";
+import { useItemStore } from "@/stores/items";
+
 const route = useRoute();
-const customer = ref({ id: 0, name: "", total_debt: 0, total_payments: 0, transactions: [] });
+
+const customerStore = useCustomerStore();
+const transactionStore = useTransactionStore();
+const itemStore = useItemStore();
+
+// local state
+const customer = ref(null);
 const transactions = ref([]);
 const items = ref([]);
+
 const showPaymentModal = ref(false);
 const showDebtModal = ref(false);
 const paymentAmount = ref(0);
-const API_BASE = import.meta.env.VITE_API_BASE;
+
+function closeModals(){
+    showPaymentModal.value = false;
+    showDebtModal.value = false;
+}
+
+// totals shown in UI — computed from transactions (more reliable than stored customer fields)
+const totalDebt = ref(0);
+const totalPayments = ref(0);
+
+async function computeTotalsFromTransactions(txns) {
+  let debt = 0;
+  let payments = 0;
+
+  for (const t of txns) {
+    const amt = Number(t.total_amount ?? t.amount ?? 0);
+    if (t.transaction_type === "debt") debt += amt;
+    if (t.transaction_type === "payment") payments += amt;
+  }
+
+  totalDebt.value = debt;
+  totalPayments.value = payments;
+}
 
 async function loadCustomer() {
-  const res = await fetch(`${API_BASE}/customers/${route.params.id}/`);
-  const json = await res.json();
-  customer.value = { ...json };
-  transactions.value = (json.transactions || []).map(t => ({ ...t, total_amount: parseFloat(t.total_amount || 0) }));
+  await customerStore.loadCustomers();
+
+  const id = Number(route.params.id);
+  customer.value = customerStore.customers.find(c => c.id === id) || null;
+
+  // load txns via store (they contain total_amount or items)
+  const txns = await transactionStore.getCustomerTransactions(id);
+
+  // normalize: ensure each txn has total_amount and date
+  transactions.value = txns.map(t => ({
+    ...t,
+    total_amount: Number(t.total_amount ?? t.amount ?? 0),
+    date: t.date ?? new Date().toISOString(),
+  }));
+
+  await computeTotalsFromTransactions(transactions.value);
+
+  // optionally: persist totals back to customer row so other parts can read them,
+  // but keep them as numbers (avoid toFixed strings)
+  if (customer.value) {
+    customer.value.total_debt = totalDebt.value;
+    customer.value.total_payments = totalPayments.value;
+    // update local DB customer entry so stored values are in sync
+    await (async () => {
+      const db = (await import("@/db")).db;
+      const stored = await db.customers.get(customer.value.id);
+      if (stored) {
+        stored.total_debt = totalDebt.value;
+        stored.total_payments = totalPayments.value;
+        await db.customers.put(stored);
+      }
+    })();
+  }
 }
 
+// Load available shop items
 async function loadItems() {
-  const fetchedItems = await fetchItems();
-  items.value = fetchedItems.map(i => ({ ...i, selected: false, quantity: 1 }));
+  await itemStore.loadItems();
+  items.value = itemStore.items.map(i => ({
+    id: i.id,
+    name: i.name,
+    price: Number(i.price || 0),
+    selected: false,
+    quantity: 1,
+  }));
 }
 
+// Payment
 async function submitPayment() {
-  await addTransaction(customer.value.id, "payment", { amount: paymentAmount.value });
+  if (!paymentAmount.value || paymentAmount.value <= 0) return alert("Enter a valid amount");
+
+  await transactionStore.addPayment(customer.value.id, Number(paymentAmount.value));
+
   paymentAmount.value = 0;
   showPaymentModal.value = false;
+
   await loadCustomer();
 }
 
+// Debt
 async function submitDebt() {
   const selected = items.value.filter(i => i.selected && i.quantity > 0);
   if (!selected.length) return alert("Select at least one item");
-  await addTransaction(customer.value.id, "debt", { items: selected.map(i => ({ item: i.id, quantity: i.quantity })) });
+
+  // transactionStore.addDebt expects plain objects (id, name, price, quantity)
+  await transactionStore.addDebt(customer.value.id, selected.map(i => ({
+    id: i.id,
+    name: i.name,
+    price: Number(i.price || 0),
+    quantity: Number(i.quantity || 1)
+  })));
+
   showDebtModal.value = false;
+
   await loadCustomer();
 }
 
+// UI computed summary
 const computedTotal = computed(() =>
-  items.value.filter(i => i.selected).reduce((sum, i) => sum + parseFloat(i.price || 0) * i.quantity, 0)
+  items.value
+    .filter(i => i.selected)
+    .reduce((sum, i) => sum + (Number(i.price) || 0) * Number(i.quantity), 0)
 );
 
-onMounted(() => {
-  loadCustomer();
-  loadItems();
+onMounted(async () => {
+  await loadCustomer();
+  await loadItems();
 });
 </script>
+
+
+
 
 <style scoped>
 .profile {
@@ -326,6 +417,7 @@ header h1 {
   overflow-y: auto;
   padding: 1.5rem;
   box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+  
 }
 .modal h3 {
   margin: 0 0 1.5rem;
@@ -341,6 +433,7 @@ header h1 {
   font-size: 1.1rem;
   text-align: center;
   margin-bottom: 1rem;
+  box-sizing: border-box;
 }
 .item-list {
   max-height: 40vh;
