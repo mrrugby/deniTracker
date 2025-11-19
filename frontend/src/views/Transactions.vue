@@ -2,6 +2,7 @@
   <div class="transactions-page">
     <TopNav />
 
+    <!-- Search -->
     <section class="search-section">
       <div class="search-bar">
         <span class="material-symbols-outlined search-icon">search</span>
@@ -9,6 +10,7 @@
       </div>
     </section>
 
+    <!-- Transactions List -->
     <section class="transactions-section">
       <p v-if="filteredTransactions.length === 0" class="empty-text">No transactions found.</p>
 
@@ -50,6 +52,7 @@
       </div>
     </section>
 
+    <!-- Add Transaction Button -->
     <button class="fab" @click="showAddTransaction = true">
       <span class="material-symbols-outlined">add</span>
     </button>
@@ -70,7 +73,7 @@
 
             <div v-if="showCustomerDropdown" class="custom-select-dropdown">
               <div
-                v-for="c in customers"
+                v-for="c in customerStore.customers"
                 :key="c.id"
                 class="custom-select-option"
                 @click="selectCustomer(c.id)"
@@ -91,23 +94,18 @@
             </button>
 
             <div v-if="showTypeDropdown" class="custom-select-dropdown">
-              <div class="custom-select-option" @click="setType('payment')">
-                Payment
-              </div>
-              <div class="custom-select-option" @click="setType('debt')">
-                Debt
-              </div>
+              <div class="custom-select-option" @click="setType('payment')">Payment</div>
+              <div class="custom-select-option" @click="setType('debt')">Debt</div>
             </div>
           </div>
         </div>
 
-        <!-- PAYMENT INPUT -->
+        <!-- AMOUNT / DESCRIPTION -->
         <div v-if="transaction.type === 'payment'" class="input-group">
           <label>Amount (Ksh)</label>
           <input type="number" v-model.number="transaction.amount" placeholder="e.g. 500" />
         </div>
 
-        <!-- DEBT INPUT -->
         <div v-if="transaction.type === 'debt'">
           <div class="input-group">
             <label>Description <small>(optional)</small></label>
@@ -135,16 +133,14 @@ import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import TopNav from "@/components/TopNav.vue";
 import BottomNav from "@/components/BottomNav.vue";
-import { fetchCustomers } from "@/services/api";
-import { db } from "@/db";
 import { useTransactionStore } from "@/stores/transactions";
 import { useCustomerStore } from "@/stores/customers";
+import { db } from "@/db";
 
 const router = useRouter();
 const transactionStore = useTransactionStore();
 const customerStore = useCustomerStore();
 
-const customers = ref([]);
 const transactions = ref([]);
 const searchQuery = ref("");
 const showAddTransaction = ref(false);
@@ -154,7 +150,7 @@ const showTypeDropdown = ref(false);
 
 const transaction = ref({ customerId: "", type: "", amount: null, description: "" });
 
-/* ---------- Helper: Safe amount formatting ---------- */
+/* ---------- Helper ---------- */
 function formatAmount(value) {
   const num = Number(value ?? (value === 0 ? 0 : NaN));
   return isNaN(num) ? "0.00" : num.toFixed(2);
@@ -162,16 +158,17 @@ function formatAmount(value) {
 
 /* ---------- Computeds ---------- */
 const selectedCustomerName = computed(() => {
-  const c = customers.value.find(c => c.id === transaction.value.customerId);
+  const c = customerStore.customers.find(c => c.id === transaction.value.customerId);
   return c ? c.name : "";
 });
 
 const mappedTransactions = computed(() => {
-  // ensure we always expose `.amount` as a number for template
   return transactions.value.map(t => ({
     ...t,
     amount: Number(t.total_amount ?? t.amount ?? 0),
-    customer_name: customers.value.find(c => c.id === (t.customer_id ?? t.customerId))?.name || "Unknown",
+    customer_name:
+      customerStore.customers.find(c => c.id === (t.customer_id ?? t.customerId))?.name ||
+      "Unknown",
   }));
 });
 
@@ -189,27 +186,16 @@ function goToCustomer(id) {
   router.push(`/customer/${id}`);
 }
 
-/* ---------- Loaders (offline-first) ---------- */
+/* ---------- Loaders ---------- */
 async function loadCustomers() {
-  try {
-    const data = await fetchCustomers();
-    customers.value = data;
-    // mirror to local
-    await db.customers.clear();
-    await db.customers.bulkPut(data);
-    // also update store if present
-    await customerStore.loadCustomers?.();
-  } catch {
-    customers.value = await db.customers.toArray();
-  }
+  await customerStore.loadCustomers(); // ONLY offline
 }
 
 async function loadTransactions() {
-  // load raw rows from Dexie and normalize in computed
   transactions.value = await db.transactions.orderBy('date').reverse().toArray();
 }
 
-/* ---------- Actions (use transaction store so customer totals update) ---------- */
+/* ---------- Actions ---------- */
 function selectCustomer(id) {
   transaction.value.customerId = id;
   showCustomerDropdown.value = false;
@@ -225,14 +211,12 @@ function closeAddModal() {
   transaction.value = { customerId: "", type: "", amount: null, description: "" };
 }
 
-/* Submit — call transactionStore methods so customer totals get updated */
 async function submitTransaction() {
   if (!transaction.value.customerId || !transaction.value.type) return alert("Fill all fields.");
 
   if (transaction.value.type === "payment") {
     await transactionStore.addPayment(transaction.value.customerId, Number(transaction.value.amount || 0));
   } else {
-    // build a single-item representation (clean) — transactionStore.addDebt expects itemList
     const itemList = [{
       id: Date.now(),
       name: transaction.value.description || "Manual entry",
@@ -242,28 +226,29 @@ async function submitTransaction() {
     await transactionStore.addDebt(transaction.value.customerId, itemList);
   }
 
-  // reload view
   await loadTransactions();
   await loadCustomers();
   closeAddModal();
 }
 
 /* ---------- Lifecycle ---------- */
+const closeDropdowns = (e) => {
+  if (!e.target.closest('.custom-select-wrapper')) {
+    showCustomerDropdown.value = false;
+    showTypeDropdown.value = false;
+  }
+};
+
 onMounted(async () => {
   await loadCustomers();
   await loadTransactions();
-
-  const closeDropdowns = (e) => {
-    if (!e.target.closest('.custom-select-wrapper')) {
-      showCustomerDropdown.value = false;
-      showTypeDropdown.value = false;
-    }
-  };
   document.addEventListener('click', closeDropdowns);
-  onUnmounted(() => document.removeEventListener('click', closeDropdowns));
+});
+
+onUnmounted(() => {
+  document.removeEventListener('click', closeDropdowns);
 });
 </script>
-
 
 
 
