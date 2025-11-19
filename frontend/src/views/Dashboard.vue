@@ -167,13 +167,24 @@
         </div>
 
         <div v-if="transaction.type === 'debt'">
-          <div class="input-group">
-            <label>Description <small>(optional)</small></label>
-            <input type="text" v-model="transaction.description" placeholder="e.g. 2kg sugar" />
+          <div class="item-list">
+            <label v-for="item in items" :key="item.id" class="item-row">
+              <input type="checkbox" v-model="item.selected" />
+              <span class="item-name">{{ item.name }}</span>
+              <span class="item-price">{{ item.price.toLocaleString() }} Ksh</span>
+              <input
+                v-if="item.selected"
+                v-model.number="item.quantity"
+                type="number"
+                min="1"
+                class="qty"
+                placeholder="Qty"
+              />
+            </label>
           </div>
-          <div class="input-group">
-            <label>Amount (Ksh)</label>
-            <input type="number" v-model.number="transaction.amount" placeholder="e.g. 300" />
+
+          <div class="total" style="margin-top: 1rem; font-weight: 600;">
+            Total: {{ computedTotal.toLocaleString() }} Ksh
           </div>
         </div>
 
@@ -190,20 +201,24 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, onUnmounted, watch } from "vue";
+import { ref, onMounted, computed, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import TopNav from "@/components/TopNav.vue";
 import BottomNav from "@/components/BottomNav.vue";
 import { useCustomerStore } from "@/stores/customers";
 import { useTransactionStore } from "@/stores/transactions";
+import { useItemStore  } from "@/stores/items";
+
 
 const router = useRouter();
 
 const customerStore = useCustomerStore();
 const transactionStore = useTransactionStore();
+const stockStore = useItemStore();
 
 const customers = ref([]);
 const transactions = ref([]);
+const items = ref([]);
 
 const totalDebt = ref(0);
 const totalPayments = ref(0);
@@ -225,6 +240,10 @@ const sortedTransactions = computed(() => {
   return [...transactions.value].sort((a, b) => new Date(b.date) - new Date(a.date));
 });
 
+const computedTotal = computed(() =>
+  items.value.filter(i => i.selected).reduce((sum, i) => sum + i.price * i.quantity, 0)
+);
+
 function selectCustomer(id, name) {
   transaction.value.customerId = id;
   showCustomerDropdown.value = false;
@@ -241,11 +260,7 @@ function goToCustomer(id) {
   router.push(`/customer/${id}`);
 }
 
-/* -------------------------
-   Data loading (offline-first)
-   ------------------------- */
 async function loadLocalCustomers() {
-  // try store's load (it should handle online refresh internally)
   try {
     await customerStore.loadCustomers();
     customers.value = customerStore.customers;
@@ -255,9 +270,7 @@ async function loadLocalCustomers() {
 }
 
 async function loadLocalTransactions() {
-  // load all transactions from store
   await transactionStore.loadTransactions();
-  // normalize to the shape this component expects
   transactions.value = transactionStore.transactions.map(t => ({
     id: t.id,
     customer_id: t.customer_id ?? t.customerId ?? t.customerId,
@@ -267,7 +280,6 @@ async function loadLocalTransactions() {
     description: t.description ?? "",
     date: t.date ?? (t.created_at || new Date().toISOString())
   }));
-  // recompute totals
   computeTotals();
 }
 
@@ -281,9 +293,6 @@ function computeTotals() {
     .reduce((s, t) => s + Number(t.amount), 0);
 }
 
-/* -------------------------
-   Submit handlers (local only)
-   ------------------------- */
 async function submitCustomer() {
   if (!newCustomer.value.name.trim()) return alert("Customer name is required.");
   await customerStore.addCustomer({ name: newCustomer.value.name.trim(), phone: newCustomer.value.phone || "" });
@@ -300,21 +309,24 @@ async function submitTransaction() {
   if (transaction.value.type === "payment") {
     await transactionStore.addPayment(transaction.value.customerId, transaction.value.amount);
   } else {
-    // addDebt expects items array; we will use a single-line item with amount and quantity 1
-    await transactionStore.addDebt(transaction.value.customerId, [{ id: Date.now(), quantity: 1, price: Number(transaction.value.amount) }]);
+    const selectedItems = items.value.filter(i => i.selected && i.quantity > 0);
+    if (!selectedItems.length) return alert("Select at least one item.");
+    await transactionStore.addDebt(transaction.value.customerId, selectedItems.map(i => ({
+      id: i.id,
+      name: i.name,
+      price: i.price,
+      quantity: i.quantity,
+    })));
+    items.value.forEach(i => { i.selected = false; i.quantity = 1; });
   }
 
   closeTransactionModal();
   transaction.value = { customerId: "", type: "", amount: null, description: "" };
 
   await loadLocalTransactions();
-  // reload customers too (so any computed fields derived from customers are fresh)
   await loadLocalCustomers();
 }
 
-/* -------------------------
-   Dropdown outside click close
-   ------------------------- */
 function handleDocClick(e) {
   if (!e.target.closest(".custom-select-wrapper")) {
     showCustomerDropdown.value = false;
@@ -322,10 +334,22 @@ function handleDocClick(e) {
   }
 }
 
+async function loadItems() {
+  await stockStore.loadItems(); // <-- fetch user-added items
+  items.value = stockStore.items.map(i => ({
+    id: i.id,
+    name: i.name,
+    price: Number(i.price),
+    selected: false,
+    quantity: 1,
+  }));
+}
+
 onMounted(async () => {
   document.addEventListener("click", handleDocClick);
   await loadLocalCustomers();
   await loadLocalTransactions();
+  await loadItems();
 });
 
 onUnmounted(() => {
@@ -333,8 +357,8 @@ onUnmounted(() => {
 });
 </script>
 
-
 <style scoped>
+/* Keep your existing CSS unchanged */
 .dashboard {
   font-family: "Inter", sans-serif;
   background: #f8fafc;
@@ -344,14 +368,12 @@ onUnmounted(() => {
   flex-direction: column;
   padding-bottom: 3rem;
 }
-
 .cards {
   display: grid;
   gap: 0.5rem;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   padding: 1rem;
 }
-
 .card {
   background: white;
   border: 1px solid #e2e8f0;
@@ -359,7 +381,6 @@ onUnmounted(() => {
   padding: 1rem;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
 }
-
 .card-header {
   display: flex;
   align-items: center;
@@ -368,20 +389,16 @@ onUnmounted(() => {
   font-size: 0.9rem;
   margin-bottom: 0.5rem;
 }
-
 .card-value {
   font-size: 1.8rem;
   font-weight: 700;
   margin: 0;
 }
-
 .red { color: #dc2626; }
-
 .actions-section,
 .transactions-section {
   padding: 0 1rem;
 }
-
 .actions-section h2,
 .transactions-section h2 {
   font-size: 1.1rem;
@@ -389,13 +406,11 @@ onUnmounted(() => {
   color: #1e293b;
   font-weight: 600;
 }
-
 .actions {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
-
 .action {
   display: flex;
   align-items: center;
@@ -409,23 +424,17 @@ onUnmounted(() => {
   cursor: pointer;
   transition: all 0.2s;
 }
-
 .action.primary {
   background: #059669;
   color: white;
   border: none;
 }
-
-.action:hover {
-  transform: scale(0.99);
-}
-
+.action:hover { transform: scale(0.99); }
 .transactions {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
-
 .transaction {
   display: flex;
   align-items: center;
@@ -437,12 +446,10 @@ onUnmounted(() => {
   cursor: pointer;
   transition: transform 0.15s;
 }
-
 .transaction:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0,0,0,0.08);
 }
-
 .icon {
   width: 48px;
   height: 48px;
@@ -452,46 +459,15 @@ onUnmounted(() => {
   justify-content: center;
   flex-shrink: 0;
 }
-
 .icon.in { background: #dcfce7; color: #16a34a; }
 .icon.out { background: #fee2e2; color: #dc2626; }
-
-.info .name {
-  font-weight: 600;
-  margin: 0;
-  font-size: 0.95rem;
-}
-
-.info .desc {
-  color: #64748b;
-  font-size: 0.8rem;
-  margin: 0.25rem 0 0;
-}
-
-.amount {
-  margin-left: auto;
-  text-align: right;
-  font-weight: 700;
-  font-size: 0.95rem;
-}
-
+.info .name { font-weight: 600; margin: 0; font-size: 0.95rem; }
+.info .desc { color: #64748b; font-size: 0.8rem; margin: 0.25rem 0 0; }
+.amount { margin-left: auto; text-align: right; font-weight: 700; font-size: 0.95rem; }
 .amount.in { color: #16a34a; }
 .amount.out { color: #dc2626; }
-
-.amount .date {
-  font-size: 0.7rem;
-  color: #94a3b8;
-  margin-top: 0.25rem;
-  font-weight: 500;
-}
-
-.empty-text {
-  text-align: center;
-  color: #94a3b8;
-  padding: 2rem 0;
-  font-size: 0.95rem;
-}
-
+.amount .date { font-size: 0.7rem; color: #94a3b8; margin-top: 0.25rem; font-weight: 500; }
+.empty-text { text-align: center; color: #94a3b8; padding: 2rem 0; font-size: 0.95rem; }
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -503,7 +479,6 @@ onUnmounted(() => {
   z-index: 1000;
   backdrop-filter: blur(4px);
 }
-
 .modal-content {
   background: white;
   border-radius: 1.25rem;
@@ -514,7 +489,6 @@ onUnmounted(() => {
   box-shadow: 0 20px 40px rgba(0,0,0,0.15);
   padding: 1.5rem;
 }
-
 .modal-content h3 {
   margin: 0 0 1.5rem;
   text-align: center;
@@ -522,23 +496,9 @@ onUnmounted(() => {
   font-weight: 700;
   color: #1e293b;
 }
-
-.input-group {
-  margin-bottom: 1.5rem;
-}
-
-.input-group label {
-  display: block;
-  margin-bottom: 0.5rem;
-  color: #475569;
-  font-weight: 500;
-}
-
-.input-group small {
-  color: #64748b;
-  font-weight: normal;
-}
-
+.input-group { margin-bottom: 1.5rem; }
+.input-group label { display: block; margin-bottom: 0.5rem; color: #475569; font-weight: 500; }
+.input-group small { color: #64748b; font-weight: normal; }
 .input-group input {
   width: 100%;
   padding: 0.9rem;
@@ -547,42 +507,16 @@ onUnmounted(() => {
   font-size: 1.1rem;
   box-sizing: border-box;
 }
-
 .input-group input:focus {
   outline: none;
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
 }
-
-.modal-actions {
-  display: flex;
-  gap: 1rem;
-  margin-top: 1.5rem;
-}
-
-.btn {
-  flex: 1;
-  padding: 0.9rem;
-  border: none;
-  border-radius: 0.75rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn.primary {
-  background: #059669;
-  color: white;
-}
-
-.btn.cancel {
-  background: #e2e8f0;
-  color: #475569;
-}
-
-/* CUSTOM DROPDOWN STYLES */
+.modal-actions { display: flex; gap: 1rem; margin-top: 1.5rem; }
+.btn { flex: 1; padding: 0.9rem; border: none; border-radius: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.btn.primary { background: #059669; color: white; }
+.btn.cancel { background: #e2e8f0; color: #475569; }
 .custom-select-wrapper { position: relative; }
-
 .custom-select-display {
   width: 100%;
   background: #fff;
@@ -600,25 +534,10 @@ onUnmounted(() => {
   box-shadow: 0 1px 3px rgba(0,0,0,0.04);
   transition: all 0.15s ease;
 }
-
-.custom-select-display[aria-expanded="true"] .dropdown-icon {
-  transform: rotate(180deg);
-}
-
-.custom-select-display span:first-child {
-  color: #64748b;
-}
-.custom-select-display span:first-child:not(:empty) {
-  color: #1e293b;
-  font-weight: 500;
-}
-
-.dropdown-icon {
-  font-size: 1.4rem;
-  color: #64748b;
-  transition: transform 0.15s ease;
-}
-
+.custom-select-display[aria-expanded="true"] .dropdown-icon { transform: rotate(180deg); }
+.custom-select-display span:first-child { color: #64748b; }
+.custom-select-display span:first-child:not(:empty) { color: #1e293b; font-weight: 500; }
+.dropdown-icon { font-size: 1.4rem; color: #64748b; transition: transform 0.15s ease; }
 .custom-select-dropdown {
   position: absolute;
   top: calc(100% + 8px);
@@ -633,25 +552,15 @@ onUnmounted(() => {
   overflow-y: auto;
   animation: dropdownIn 0.12s ease;
 }
-
-@keyframes dropdownIn {
-  from { opacity: 0; transform: translateY(-6px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-.custom-select-option {
-  padding: 0.75rem 1rem;
-  font-size: 1rem;
-  font-weight: 500;
-  color: #1e293b;
-  cursor: pointer;
-  transition: background 0.12s;
-}
-
+@keyframes dropdownIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+.custom-select-option { padding: 0.75rem 1rem; font-size: 1rem; font-weight: 500; color: #1e293b; cursor: pointer; transition: background 0.12s; }
 .custom-select-option:hover { background: #f1f5f9; }
-.custom-select-option.active {
-  background: #e8f0fe;
-  color: #1763cf;
-  font-weight: 700;
-}
+.custom-select-option.active { background: #e8f0fe; color: #1763cf; font-weight: 700; }
+
+/* Debt modal item list */
+.item-list { display: flex; flex-direction: column; gap: 0.5rem; }
+.item-row { display: flex; align-items: center; gap: 0.5rem; }
+.item-name { flex: 1; }
+.item-price { margin-left: auto; }
+.qty { width: 60px; padding: 0.3rem 0.5rem; border: 1px solid #e2e8f0; border-radius: 0.5rem; text-align: center; }
 </style>
