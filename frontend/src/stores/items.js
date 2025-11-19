@@ -1,7 +1,6 @@
 // src/stores/items.js
 import { defineStore } from "pinia"
 import { db } from "@/db"
-import { fetchItems } from "@/services/api"
 
 export const useItemStore = defineStore("items", {
   state: () => ({
@@ -13,37 +12,16 @@ export const useItemStore = defineStore("items", {
   actions: {
 
     /* ------------------------------------------------------------------ */
-    /* 1. Load items: Dexie first → then fetch API and add new items      */
+    /* 1. Load items from Dexie only                                      */
     /* ------------------------------------------------------------------ */
     async loadItems() {
       this.loading = true
       this.error = null
-
       try {
-        // Always load Dexie first
-        const localItems = await db.items.toArray()
-        this.items = localItems
-
-        // Try to fetch remote items if online
-        const remoteItems = await fetchItems()
-
-        // Only add remote items that don't exist in Dexie
-        const newItems = remoteItems.filter(
-          r => !localItems.some(
-            l => l.name.trim().toLowerCase() === r.name.trim().toLowerCase()
-          )
-        )
-
-        if (newItems.length > 0) {
-          await db.items.bulkPut(newItems)
-          this.items = await db.items.toArray()
-        }
-      } catch (e) {
-        console.warn("API unavailable, using offline only:", e)
-
-        // Never treat offline as a user error
-        this.error = null
         this.items = await db.items.toArray()
+      } catch (e) {
+        console.error("Failed to load items:", e)
+        this.error = e
       } finally {
         this.loading = false
       }
