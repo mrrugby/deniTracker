@@ -338,7 +338,7 @@ onUnmounted(() => {
 /* Main Action Buttons - Taller & More Tappable */
 .action.main,
 .action.secondary {
-  height: 68px;
+  height: 75px;
   border-radius: 1.1rem;
   font-size: 1.05rem;
   font-weight: 600;
