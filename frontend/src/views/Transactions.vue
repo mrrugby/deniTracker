@@ -251,8 +251,6 @@ onUnmounted(() => {
 </script>
 
 
-
-
 <style scoped>
 .transactions-page {
   font-family: "Inter", sans-serif;
@@ -264,14 +262,23 @@ onUnmounted(() => {
 }
 
 /* Search Bar */
-.search-section { padding: 0.5rem 1rem; }
+.search-section { padding: 0 0.3rem; }
 .search-bar { display: flex; align-items: center; background: white; border: 1px solid #e2e8f0; border-radius: 0.8rem; padding: 0.4rem 0.6rem; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04); }
 .search-icon { color: #6b7280; font-size: 1.4rem; margin-right: 0.3rem; }
 .search-bar input { flex: 1; border: none; outline: none; font-size: 0.9rem; font-weight: bold; background: transparent; }
 
 /* Transactions List */
-.transactions-section { flex: 1; padding: 0.5rem 1rem 5rem; }
-.transaction-card { display: flex; align-items: center; justify-content: space-between; background: white; border-radius: 0.9rem; padding: 0.9rem 1rem; margin-bottom: 0.6rem; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); }
+.transactions-section { flex: 1; padding: 0.5rem 0.3rem 5rem; }
+.transaction-card { 
+    display: flex; 
+    align-items: center; 
+    justify-content: space-between; 
+    background: white; 
+    border-radius: 0.9rem; 
+    padding: 0.5rem 0.5rem; 
+    margin-bottom: 0.4rem; 
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+ }
 .tx-info { display: flex; align-items: center; gap: 0.8rem; flex: 1; }
 .icon { display: flex; align-items: center; justify-content: center; border-radius: 50%; height: 2.5rem; width: 2.5rem; }
 .icon.in { background: rgba(16, 124, 65, 0.1); color: #107c41; }

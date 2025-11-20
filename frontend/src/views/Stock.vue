@@ -195,7 +195,7 @@ async function deleteItem(id) {
 
 <style scoped>
 .page {
-  padding: 1rem;
+  padding: 0.3rem;
   min-height: 100vh;
   background: #f8fafc;
   font-family: system-ui, -apple-system, sans-serif;
@@ -270,9 +270,9 @@ async function deleteItem(id) {
 
 .status {
   font-size: 0.8rem;
-  padding: 0.35rem 0.75rem;
+  padding: 0 0.5rem;
   border-radius: 999px;
-  font-weight: 600;
+  font-weight: 800;
   background: #dcfce7;
   color: #166534;
 }

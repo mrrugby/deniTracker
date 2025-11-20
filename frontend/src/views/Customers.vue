@@ -240,7 +240,7 @@ function goToCustomer(id) {
   font-family: "Inter", system-ui, sans-serif;
   background-color: #f6f7f8;
   min-height: 100vh;
-  padding: 0.75rem 1rem;
+  padding: 0 0.3rem;
   display: flex;
   flex-direction: column;
 }
@@ -249,8 +249,7 @@ function goToCustomer(id) {
 .controls {
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
-  margin-bottom: 1rem;
+  margin-bottom: 0.3rem;
 }
 
 /* SEARCH */
@@ -295,13 +294,13 @@ function goToCustomer(id) {
 }
 
 .sort-display {
-  width: 100%;
+  width: 50%;
   background: #fff;
   border: 1.5px solid #e2e8f0;
   border-radius: 0.75rem;
   padding: 0.9rem 1rem;
-  font-size: 1rem;
-  font-weight: 500;
+  font-size: 0.9rem;
+  font-weight: 750;
   color: #1e293b;
   display: flex;
   align-items: center;
@@ -362,7 +361,7 @@ function goToCustomer(id) {
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.3rem;
 }
 
 .customer-card {
