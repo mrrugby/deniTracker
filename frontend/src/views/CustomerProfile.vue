@@ -32,12 +32,13 @@
     <!-- Action Buttons -->
     <section class="actions">
       <button @click="showDebtModal = true" class="btn primary">
-        <svg viewBox="0 0 24 24"><path d="M12 5v14m7-7H5"/></svg>
-        Add Deni
+       <span class="material-symbols-outlined">add_circle</span>
+      <span>New Deni</span>
       </button>
+      
       <button @click="showPaymentModal = true" class="btn secondary">
-        <svg viewBox="0 0 24 24"><path d="M12 5v14m7-7H5"/></svg>
-        Add Payment
+       <span class="material-symbols-outlined">payments</span>
+      <span>New Payment</span>
       </button>
     </section>
 
@@ -54,7 +55,7 @@
 
         <div class="details">
           <div class="title">
-            {{ t.transaction_type === 'debt' ? 'Deni/Debt' : 'Payment Received' }}
+            {{ t.transaction_type === 'debt' ? 'Deni/Debt' : 'Payment Added' }}
           </div>
           <div class="amount" :class="t.transaction_type">
             {{ t.transaction_type === 'debt' ? '+' : '-' }}
@@ -268,7 +269,7 @@ onMounted(async () => {
 
 <style scoped>
 .profile {
-  padding: 1rem;
+  padding: 0.5rem;
   min-height: 100vh;
   background: #f9fafb;
   font-family: system-ui, -apple-system, sans-serif;
@@ -279,15 +280,15 @@ header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 1.5rem;
+  margin-bottom: 0.5rem;
   position: relative;
 }
 header h1 {
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 1.25rem;
-  font-weight: 700;
+  font-size: 1.5rem;
+  font-weight: 800;
   color: #1f2937;
 }
 .back-btn {
@@ -303,9 +304,9 @@ header h1 {
 .summary {
   background: white;
   border-radius: 1rem;
-  padding: 1.25rem;
+  padding: 0.5rem;
   box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
 }
 .balance {
   display: flex;
@@ -327,11 +328,10 @@ header h1 {
 .actions {
   display: flex;
   gap: 1rem;
-  margin-bottom: 2rem;
 }
 .btn {
   flex: 1;
-  padding: 1rem;
+  padding: 1.5rem;
   border: none;
   border-radius: 1rem;
   font-weight: 600;
@@ -339,29 +339,28 @@ header h1 {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  gap: 0.2rem;
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
-.btn svg { width: 20px; height: 20px; }
+.btn svg { width: 20px; height: 60px; }
 .btn.primary { background: #dc2626; }
 .btn.secondary { background: #16a34a; }
 
 /* Transactions */
 .transactions h3 {
-  margin: 1.5rem 0 1rem;
   font-size: 1.1rem;
   color: #374151;
-  font-weight: 600;
+  font-weight: 700;
 }
 .transaction-card {
   display: flex;
   align-items: center;
   gap: 1rem;
   background: white;
-  padding: 1rem;
+  padding: 0.3rem;
   border-radius: 1rem;
   box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.5rem;
 }
 .icon {
   width: 48px;
@@ -385,7 +384,7 @@ header h1 {
 
 .meta { text-align: right; }
 .status {
-  display: block;
+  display: inline-block;
   padding: 0.35rem 0.75rem;
   border-radius: 999px;
   font-size: 0.75rem;
