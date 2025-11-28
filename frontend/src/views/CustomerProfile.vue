@@ -393,7 +393,7 @@ header h1 {
 }
 .status.debt { background: #fee2e2; color: #dc2626; }
 .status.payment { background: #dcfce7; color: #16a34a; }
-.date { font-size: 0.8rem; color: #9ca3af; }
+.date { font-size: 0.7rem; color: #9ca3af; }
 
 /* Modal */
 .modal-backdrop {
