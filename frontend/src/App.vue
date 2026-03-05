@@ -9,6 +9,19 @@
 </script>
 
 <style>
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+button:focus {
+  outline: none;
+}
+
 body {
   margin: 0;
   background: #f9fafb;
