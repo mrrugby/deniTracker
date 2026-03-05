@@ -2,6 +2,15 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+button {
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+button:focus {
+  outline: none;
+}
+
 html, body {
   margin: 0;
   padding: 0;
