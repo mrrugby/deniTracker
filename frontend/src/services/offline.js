@@ -1,5 +1,4 @@
 import { db } from "@/db";
-import { addDebt } from "@/services/api";
 
 
 const API_BASE = import.meta.env.VITE_API_BASE;

@@ -89,8 +89,8 @@
                 v-for="c in customers"
                 :key="c.id"
                 class="custom-select-option"
-                :class="{ active: transaction.customerId === c.id }"
-                @click="transaction.customerId = c.id; showCustomerDropdown = false"
+                :class="{ active: transaction.customer_id === c.id }"
+                @click="transaction.customer_id = c.id; showCustomerDropdown = false"
               >
                 {{ c.name }}
               </div>
@@ -173,79 +173,45 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
-import { fetchCustomers, addTransaction } from "@/services/api";
+import { fetchCustomers, fetchTransactions, addTransaction } from "@/services/local";
 import TopNav from "@/components/TopNav.vue";
 import BottomNav from "@/components/BottomNav.vue";
 
 const router = useRouter();
-const API_BASE = import.meta.env.VITE_API_BASE;
 
 const customers = ref([]);
 const transactions = ref([]);
 const searchQuery = ref("");
 const showAddTransaction = ref(false);
-
-// Custom dropdown states
 const showCustomerDropdown = ref(false);
 const showTypeDropdown = ref(false);
 
-const transaction = ref({ customerId: "", type: "", amount: null, description: "" });
-
-const selectedCustomerName = computed(() => {
-  const customer = customers.value.find(c => c.id === transaction.value.customerId);
-  return customer ? customer.name : '';
-});
-
+const transaction = ref({ customer_id: "", type: "", amount: null, description: "" });
+const selectedCustomerName = computed(() => customers.value.find(c => c.id === transaction.value.customer_id)?.name || '');
 const filteredTransactions = computed(() => {
   const q = searchQuery.value.toLowerCase();
-  return transactions.value.filter(
-    (tx) =>
-      tx.customer_name.toLowerCase().includes(q) ||
-      (tx.description && tx.description.toLowerCase().includes(q))
+  return transactions.value.filter(tx =>
+    tx.customer_name?.toLowerCase().includes(q) || tx.description?.toLowerCase().includes(q)
   );
 });
 
-function goToCustomer(id) {
-  if (!id) return alert("Customer not found for this transaction.");
-  router.push(`/customer/${id}`);
-}
+function goToCustomer(id) { if (id) router.push(`/customer/${id}`); }
 
-async function fetchTransactions() {
-  const res = await fetch(`${API_BASE}/transactions/`);
-  if (!res.ok) throw new Error("Failed to fetch transactions");
-  const data = await res.json();
-  transactions.value = data.map((tx) => ({
-    id: tx.id,
-    customer_id: tx.customer || null,
-    customer_name: tx.customer_name || "Unknown",
-    transaction_type: tx.transaction_type || "unknown",
-    amount: parseFloat(tx.total_amount || tx.amount || 0),
-    description: tx.description || "",
-    date: tx.date || tx.created_at || new Date().toISOString(),
-  }));
-}
-
-async function loadCustomers() {
-  customers.value = await fetchCustomers();
-}
+async function loadCustomers() { customers.value = await fetchCustomers(); }
+async function loadTransactions() { transactions.value = await fetchTransactions(); }
 
 async function submitTransaction() {
-  if (!transaction.value.customerId || !transaction.value.type)
-    return alert("Please fill all fields.");
-  await addTransaction(transaction.value.customerId, transaction.value.type, {
-    amount: transaction.value.amount,
-    description: transaction.value.description,
-  });
+  if (!transaction.value.customer_id || !transaction.value.type) return alert("Please fill all fields.");
+  await addTransaction(transaction.value.customer_id, transaction.value.type, { amount: transaction.value.amount, description: transaction.value.description });
   showAddTransaction.value = false;
-  transaction.value = { customerId: "", type: "", amount: null, description: "" };
-  await fetchTransactions();
+  transaction.value = { customer_id: "", type: "", amount: null, description: "" };
+  await loadTransactions();
 }
 
 onMounted(async () => {
   await loadCustomers();
-  await fetchTransactions();
+  await loadTransactions();
 
-  // Close dropdowns when clicking outside
   const closeDropdowns = (e) => {
     if (!e.target.closest('.custom-select-wrapper')) {
       showCustomerDropdown.value = false;

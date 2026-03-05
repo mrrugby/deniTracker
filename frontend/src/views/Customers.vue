@@ -122,6 +122,7 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount, computed } from "vue";
 import { useRouter } from "vue-router";
+import { fetchCustomers, addCustomer } from "@/services/local";
 import TopNav from "@/components/TopNav.vue";
 import BottomNav from "@/components/BottomNav.vue";
 
@@ -131,12 +132,10 @@ const search = ref("");
 const sortOption = ref("debt-desc");
 const router = useRouter();
 const newCustomer = ref({ name: "", phone: "" });
-const API_BASE = import.meta.env.VITE_API_BASE;
 
 const page = ref(1);
 const pageSize = 6;
 
-// --- Custom sort dropdown state
 const showSort = ref(false);
 const sortWrapper = ref(null);
 const sortOptions = [
@@ -146,99 +145,64 @@ const sortOptions = [
   { value: "name-desc", label: "Name: Z to A" },
 ];
 
-const currentSortLabel = computed(() => {
-  const found = sortOptions.find((o) => o.value === sortOption.value);
-  return found ? found.label : "Sort by";
-});
+const currentSortLabel = computed(() => sortOptions.find(o => o.value === sortOption.value)?.label || "Sort by");
 
-function toggleSort() {
-  showSort.value = !showSort.value;
-}
-
-function selectSort(value) {
-  sortOption.value = value;
-  showSort.value = false;
-}
-
-// Close sort dropdown when clicking outside
-function onDocClick(e) {
-  if (sortWrapper.value && !sortWrapper.value.contains(e.target)) {
-    showSort.value = false;
-  }
-}
+function toggleSort() { showSort.value = !showSort.value; }
+function selectSort(value) { sortOption.value = value; showSort.value = false; }
+function onDocClick(e) { if (sortWrapper.value && !sortWrapper.value.contains(e.target)) showSort.value = false; }
 
 onMounted(() => {
   window.addEventListener("click", onDocClick);
   loadCustomers();
 });
+onBeforeUnmount(() => { window.removeEventListener("click", onDocClick); });
 
-onBeforeUnmount(() => {
-  window.removeEventListener("click", onDocClick);
-});
-
-// --- Data loading / saving
 async function loadCustomers() {
   try {
-    const res = await fetch(`${API_BASE}/customers/`);
-    const data = await res.json();
-    customers.value = data;
-  } catch (error) {
-    console.error("Error loading customers:", error);
+    const data = await fetchCustomers();
+    customers.value = Array.isArray(data) ? data : [];
+  } catch (e) {
+    console.error("Error loading customers:", e);
+    customers.value = [];
   }
 }
 
 async function saveCustomer() {
   if (!newCustomer.value.name.trim()) return alert("Customer name is required");
-
-  await fetch(`${API_BASE}/customers/`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(newCustomer.value),
-  });
-
-  showAddModal.value = false;
+  await addCustomer(newCustomer.value);
   newCustomer.value = { name: "", phone: "" };
+  showAddModal.value = false;
   await loadCustomers();
 }
 
-function outstanding(c) {
-  return (parseFloat(c.total_debt || 0) - parseFloat(c.total_payments || 0)) || 0;
-}
+function outstanding(c) { return (parseFloat(c.total_debt || 0) - parseFloat(c.total_payments || 0)) || 0; }
 
-// --- Filtering / sorting / pagination
 const filteredCustomers = computed(() => {
-  let list = customers.value.filter((c) =>
-    c.name.toLowerCase().includes(search.value.toLowerCase())
+  const list = Array.isArray(customers.value) ? [...customers.value] : [];
+
+  const filtered = list.filter(c =>
+    (c.name || "").toLowerCase().includes(search.value.toLowerCase())
   );
 
   if (sortOption.value === "debt-desc")
-    list.sort((a, b) => outstanding(b) - outstanding(a));
+    filtered.sort((a, b) => outstanding(b) - outstanding(a));
+
   if (sortOption.value === "debt-asc")
-    list.sort((a, b) => outstanding(a) - outstanding(b));
+    filtered.sort((a, b) => outstanding(a) - outstanding(b));
+
   if (sortOption.value === "name-asc")
-    list.sort((a, b) => a.name.localeCompare(b.name));
+    filtered.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+
   if (sortOption.value === "name-desc")
-    list.sort((a, b) => b.name.localeCompare(a.name));
+    filtered.sort((a, b) => (b.name || "").localeCompare(a.name || ""));
 
-  return list;
+  return filtered;
 });
 
-const totalPages = computed(() =>
-  Math.max(1, Math.ceil(filteredCustomers.value.length / pageSize))
-);
-
-const paginatedCustomers = computed(() => {
-  const start = (page.value - 1) * pageSize;
-  return filteredCustomers.value.slice(start, start + pageSize);
-});
-
-function avatar(name) {
-  return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=1763cf&color=fff`;
-}
-
-function goToCustomer(id) {
-  router.push(`/customer/${id}`);
-}
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredCustomers.value.length / pageSize)));
+const paginatedCustomers = computed(() => filteredCustomers.value.slice((page.value - 1) * pageSize, (page.value - 1) * pageSize + pageSize));
+function avatar(name) { return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=1763cf&color=fff`; }
+function goToCustomer(id) { router.push(`/customer/${id}`); }
 </script>
 
 <style scoped>

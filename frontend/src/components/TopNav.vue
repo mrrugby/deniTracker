@@ -4,13 +4,24 @@
       <span class="material-symbols-outlined green">account_balance_wallet</span>
       <h1>DEBTLY</h1>
     </div>
-    <button class="icon-btn">
+
+    <!-- Settings Button -->
+    <button class="icon-btn" @click="showSettings = true">
       <span class="material-symbols-outlined">settings</span>
     </button>
+
+    <!-- Settings Modal -->
+    <SettingsModal v-model:show="showSettings" />
   </header>
 </template>
 
-<script setup></script>
+<script setup lang="ts">
+import { ref } from "vue"
+import SettingsModal from "@/components/SettingsModal.vue"
+
+const showSettings = ref(false)
+</script>
+
 
 <style scoped>
 @import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined");

@@ -11,9 +11,9 @@ export const useTransactionStore = defineStore("transactions", {
       this.transactions = await db.transactions.toArray()
     },
 
-    async addDebt(customerId, items) {
+    async addDebt(customer_id, items) {
       const transactionId = await db.transactions.add({
-        customerId,
+        customer_id,
         transaction_type: "debt",
         date: new Date().toISOString(),
       })
@@ -30,9 +30,9 @@ export const useTransactionStore = defineStore("transactions", {
       await this.loadTransactions()
     },
 
-    async addPayment(customerId, amount) {
+    async addPayment(customer_id, amount) {
       await db.transactions.add({
-        customerId,
+        customer_id,
         transaction_type: "payment",
         amount,
         date: new Date().toISOString(),
@@ -40,10 +40,10 @@ export const useTransactionStore = defineStore("transactions", {
       await this.loadTransactions()
     },
 
-    async getCustomerBalance(customerId) {
+    async getCustomerBalance(customer_id) {
       const transactions = await db.transactions
-        .where("customerId")
-        .equals(customerId)
+        .where("customer_id")
+        .equals(customer_id)
         .toArray()
 
       let totalDebt = 0

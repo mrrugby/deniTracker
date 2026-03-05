@@ -6,5 +6,5 @@ export const db = new Dexie("DeniTrackerDB");
 db.version(1).stores({
   customers: "++id, name, phone",
   items: "++id, name, price, is_active",
-  transactions: "++id, customer_id, transaction_type, synced",
+  transactions: "++id, customer_id, transaction_type,created_at, date, synced",
 });

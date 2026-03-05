@@ -4,25 +4,19 @@
   <div class="page">
     <header class="header">
       <h2>Shop Stock</h2>
-      <button class="add-btn" @click="openAddModal">
-        + Add Product
-      </button>
+      <button class="add-btn" @click="openAddModal">+ Add Product</button>
     </header>
 
     <!-- Loading / Error / Empty -->
-    <div v-if="store.loading" class="empty-state">Loading items…</div>
-    <div v-if="store.error" class="empty-state error">{{ store.error }}</div>
-    <div v-if="!store.loading && !store.error && store.items.length === 0" class="empty-state">
+    <div v-if="loading" class="empty-state">Loading items…</div>
+    <div v-if="error" class="empty-state error">{{ error }}</div>
+    <div v-if="!loading && !error && items.length === 0" class="empty-state">
       No stock items yet.<br>Add your first product!
     </div>
 
     <!-- Item List -->
-    <div class="item-list">
-      <div
-        v-for="item in store.items"
-        :key="item.id"
-        class="item-card"
-      >
+    <div class="item-list" v-if="!loading && !error">
+      <div v-for="item in items" :key="item.id" class="item-card">
         <div class="item-info">
           <h3>{{ formatName(item.name) }}</h3>
           <p class="price">{{ Number(item.price).toLocaleString() }} Ksh</p>
@@ -38,7 +32,7 @@
       </div>
     </div>
 
-    <!--  -->
+    <!-- Modal -->
     <teleport to="body">
       <div v-if="showModal" class="modal-backdrop" @click.self="closeModal">
         <div class="modal-content">
@@ -85,63 +79,28 @@
 
 <script setup>
 import { ref, reactive, onMounted } from "vue"
-import { useItemStore } from "@/stores/items"
 import TopNav from "@/components/TopNav.vue"
 import BottomNav from "@/components/BottomNav.vue"
+import { fetchItems, addItem, updateItem, deleteItem as removeItem } from "@/services/local"
 
-const store = useItemStore()
+const items = ref([])
+const loading = ref(false)
+const error = ref(null)
 
 const showModal = ref(false)
 const editingItem = ref(null)
 const saving = ref(false)
 
-const form = reactive({
-  name: "",
-  price: "",
-  is_active: true,
-})
+const form = reactive({ name: "", price: "", is_active: true })
 
-// Auto-format name to Title Case (e.g. "milk 2litres" → "Milk 2Litres")
+// ---- Helpers ----
 function toTitleCase(str) {
   return str
     .toLowerCase()
-    .replace(/(^|\s)\w/g, letter => letter.toUpperCase())
+    .replace(/(^|\s)\w/g, l => l.toUpperCase())
     .replace(/\b(L|Kg|Litres|Ml|G)\b/gi, match => match.toUpperCase())
 }
-
-function formatName(name) {
-  return toTitleCase(name)
-}
-
-onMounted(() => {
-  store.loadItems().catch(() => {})
-})
-
-function openAddModal() {
-  editingItem.value = null
-  resetForm()
-  showModal.value = true
-}
-
-function openEditModal(item) {
-  editingItem.value = item
-  form.name = item.name
-  form.price = String(item.price)
-  form.is_active = item.is_active
-  showModal.value = true
-}
-
-function closeModal() {
-  showModal.value = false
-  resetForm()
-}
-
-function resetForm() {
-  form.name = ""
-  form.price = ""
-  form.is_active = true
-}
-
+function formatName(name) { return toTitleCase(name) }
 function formatPrice() {
   let v = String(form.price).replace(/[^\d.]/g, "")
   const parts = v.split(".")
@@ -150,42 +109,68 @@ function formatPrice() {
   form.price = parts.join(".")
 }
 
+// ---- CRUD Functions ----
+async function loadItems() {
+  loading.value = true
+  error.value = null
+  try {
+    items.value = await fetchItems()
+  } catch (e) {
+    error.value = e.message || "Failed to load items"
+  } finally {
+    loading.value = false
+  }
+}
+
+function openAddModal() {
+  editingItem.value = null
+  resetForm()
+  showModal.value = true
+}
+function openEditModal(item) {
+  editingItem.value = item
+  form.name = item.name
+  form.price = String(item.price)
+  form.is_active = item.is_active
+  showModal.value = true
+}
+function closeModal() { showModal.value = false; resetForm() }
+function resetForm() { form.name = ""; form.price = ""; form.is_active = true }
+
 async function saveItem() {
   if (!form.name.trim()) return alert("Please enter a product name")
   if (!form.price || isNaN(Number(form.price))) return alert("Please enter a valid price")
-
-  const payload = {
-    name: form.name.trim(),
-    price: Number(form.price),
-    is_active: form.is_active,
-  }
-
+  const payload = { name: form.name.trim(), price: Number(form.price), is_active: form.is_active }
+  
   saving.value = true
   try {
     if (editingItem.value) {
-      await store.updateItem(editingItem.value.id, payload)
+      await updateItem(editingItem.value.id, payload)
       alert("Product updated")
     } else {
-      await store.addItem(payload)
+      await addItem(payload)
       alert("Product added successfully")
     }
+    await loadItems()
     closeModal()
   } catch (e) {
     alert("Error: " + (e.message || "Something went wrong"))
-  } finally {
-    saving.value = false
-  }
+  } finally { saving.value = false }
 }
 
 async function deleteItem(id) {
   if (!confirm("Delete this product permanently?")) return
   try {
-    await store.deleteItem(id)
+    await removeItem(id)
+    await loadItems()
     alert("Product deleted")
   } catch (e) {
     alert("Failed to delete")
   }
 }
+
+// ---- On mount ----
+onMounted(() => { loadItems() })
 </script>
 
 <style scoped>

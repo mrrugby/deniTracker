@@ -6,7 +6,7 @@ import {
   addItem as apiAddItem,
   updateItem as apiUpdateItem,
   deleteItem as apiDeleteItem,
-} from "@/services/api"
+} from "@/services/local"
 
 export const useItemStore = defineStore("items", {
   state: () => ({

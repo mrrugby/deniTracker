@@ -10,7 +10,7 @@
           <span class="material-symbols-outlined">error</span>
           <p>Total Debt</p>
         </div>
-        <p class="card-value red">{{ totalDebt.toLocaleString() }} Ksh</p>
+        <p class="card-value red">{{ Number(totalDebt || 0).toLocaleString() }} Ksh</p>
       </div>
 
       <div class="card">
@@ -18,7 +18,7 @@
           <span class="material-symbols-outlined">account_balance</span>
           <p>Total Repaid</p>
         </div>
-        <p class="card-value">{{ totalPayments.toLocaleString() }} Ksh</p>
+        <p class="card-value">{{ Number(totalPayments || 0).toLocaleString() }} Ksh</p>
       </div>
     </section>
 
@@ -117,7 +117,7 @@
                 v-for="c in customers"
                 :key="c.id"
                 class="custom-select-option"
-                :class="{ active: transaction.customerId === c.id }"
+                :class="{ active: transaction.customer_id === c.id }"
                 @click="selectCustomer(c.id, c.name)"
               >
                 {{ c.name }}
@@ -192,7 +192,14 @@
 <script setup>
 import { ref, onMounted, computed, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
-import { fetchCustomers, addCustomer, addTransaction } from "@/services/api";
+import {
+  fetchCustomers,
+  fetchTransactions,
+  addCustomer,
+  addTransaction,
+  calculateTotals
+} from "@/services/local";
+
 import TopNav from "@/components/TopNav.vue";
 import BottomNav from "@/components/BottomNav.vue";
 
@@ -200,29 +207,50 @@ const router = useRouter();
 
 const customers = ref([]);
 const transactions = ref([]);
+
 const totalDebt = ref(0);
 const totalPayments = ref(0);
-const API_BASE = import.meta.env.VITE_API_BASE;
 
 const showAddCustomer = ref(false);
 const showAddTransaction = ref(false);
+
 const showCustomerDropdown = ref(false);
 const showTypeDropdown = ref(false);
 
-const newCustomer = ref({ name: "", phone: "" });
-const transaction = ref({ customerId: "", type: "", amount: null, description: "" });
-
-const selectedCustomerName = computed(() => {
-  const customer = customers.value.find(c => c.id === transaction.value.customerId);
-  return customer ? customer.name : '';
+const newCustomer = ref({
+  name: "",
+  phone: ""
 });
 
+const transaction = ref({
+  customer_id: "",
+  type: "",
+  amount: null,
+  description: ""
+});
+
+const selectedCustomerName = computed(() =>
+  customers.value.find(c => c.id === transaction.value.customer_id)?.name || ""
+);
+
+/*
+|--------------------------------------------------------------------------
+| Sorting Ledger Transactions (Correct Field = date)
+|--------------------------------------------------------------------------
+*/
 const sortedTransactions = computed(() => {
-  return [...transactions.value].sort((a, b) => new Date(b.date) - new Date(a.date));
+  return [...transactions.value].sort(
+    (a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime()
+  );
 });
 
+/*
+|--------------------------------------------------------------------------
+| Dropdown Logic
+|--------------------------------------------------------------------------
+*/
 function selectCustomer(id, name) {
-  transaction.value.customerId = id;
+  transaction.value.customer_id = id;
   showCustomerDropdown.value = false;
 }
 
@@ -232,72 +260,113 @@ function closeTransactionModal() {
   showTypeDropdown.value = false;
 }
 
+function closeAllDropdowns(e) {
+  if (!e.target.closest(".custom-select-wrapper")) {
+    showCustomerDropdown.value = false;
+    showTypeDropdown.value = false;
+  }
+}
+
+/*
+|--------------------------------------------------------------------------
+| Data Loading
+|--------------------------------------------------------------------------
+*/
 async function loadData() {
-  const data = await fetchCustomers();
-  customers.value = data.map(c => ({
-    ...c,
-    total_debt: parseFloat(c.total_debt || 0),
-    total_payments: parseFloat(c.total_payments || 0),
-  }));
-  totalDebt.value = customers.value.reduce((s, c) => s + c.total_debt, 0);
-  totalPayments.value = customers.value.reduce((s, c) => s + c.total_payments, 0);
+  customers.value = await fetchCustomers();
+
+  const totals = await calculateTotals();
+
+  totalDebt.value = totals.totalDebt || 0;
+  totalPayments.value = totals.totalPayments || 0;
 }
 
-async function fetchTransactions() {
-  const res = await fetch(`${API_BASE}/transactions/`);
-  if (!res.ok) return;
-  const data = await res.json();
-  transactions.value = data.map(tx => ({
-    id: tx.id,
-    customer_id: tx.customer || null,
-    customer_name: tx.customer_name || "Unknown",
-    transaction_type: tx.transaction_type || "unknown",
-    amount: parseFloat(tx.total_amount || tx.amount || 0),
-    description: tx.description || "",
-    date: tx.date || tx.created_at || new Date().toISOString(),
-  }));
+async function loadTransactions() {
+  transactions.value = await fetchTransactions();
 }
 
-function goToCustomer(id) {
-  if (!id) return alert("Customer not found for this transaction.");
-  router.push(`/customer/${id}`);
-}
-
+/*
+|--------------------------------------------------------------------------
+| Customer CRUD
+|--------------------------------------------------------------------------
+*/
 async function submitCustomer() {
-  if (!newCustomer.value.name.trim()) return alert("Customer name is required.");
-  await addCustomer(newCustomer.value);
-  newCustomer.value = { name: "", phone: "" };
-  showAddCustomer.value = false;
-  await loadData();
-}
+  if (!newCustomer.value.name.trim())
+    return alert("Customer name is required.");
 
-async function submitTransaction() {
-  if (!transaction.value.customerId || !transaction.value.type)
-    return alert("Please fill all fields.");
-
-  await addTransaction(transaction.value.customerId, transaction.value.type, {
-    amount: transaction.value.amount,
-    description: transaction.value.description,
+  await addCustomer({
+    name: newCustomer.value.name.trim(),
+    phone: newCustomer.value.phone || ""
   });
 
-  closeTransactionModal();
-  transaction.value = { customerId: "", type: "", amount: null, description: "" };
+  newCustomer.value = { name: "", phone: "" };
+  showAddCustomer.value = false;
+
   await loadData();
-  await fetchTransactions();
 }
 
+/*
+|--------------------------------------------------------------------------
+| Transaction Submission (Ledger Safe)
+|--------------------------------------------------------------------------
+*/
+async function submitTransaction() {
+  if (!transaction.value.customer_id)
+    return alert("Select a customer");
+
+  if (!transaction.value.type)
+    return alert("Select transaction type");
+
+  if (!transaction.value.amount || transaction.value.amount <= 0)
+    return alert("Enter a valid amount");
+
+  const payload = {
+    amount: Number(transaction.value.amount),
+    description: transaction.value.description || ""
+  };
+
+  await addTransaction(
+    transaction.value.customer_id,
+    transaction.value.type,
+    payload
+  );
+
+  closeTransactionModal();
+
+  transaction.value = {
+    customer_id: "",
+    type: "",
+    amount: null,
+    description: ""
+  };
+
+  await loadData();
+  await loadTransactions();
+}
+
+/*
+|--------------------------------------------------------------------------
+| Navigation
+|--------------------------------------------------------------------------
+*/
+function goToCustomer(id) {
+  if (id) router.push(`/customer/${id}`);
+}
+
+/*
+|--------------------------------------------------------------------------
+| Lifecycle
+|--------------------------------------------------------------------------
+*/
 onMounted(async () => {
   await loadData();
-  await fetchTransactions();
+  await loadTransactions();
 
-  const closeAllDropdowns = (e) => {
-    if (!e.target.closest('.custom-select-wrapper')) {
-      showCustomerDropdown.value = false;
-      showTypeDropdown.value = false;
-    }
-  };
-  document.addEventListener('click', closeAllDropdowns);
-  onUnmounted(() => document.removeEventListener('click', closeAllDropdowns));
+  document.addEventListener("click", closeAllDropdowns);
+});
+
+onUnmounted(() => {
+  document.removeEventListener("click", closeAllDropdowns);
 });
 </script>
 
@@ -476,7 +545,7 @@ onMounted(async () => {
   border-radius: 1.25rem;
   width: 100%;
   max-width: 480px;
-  max-height: 90vh;
+  max-height: 85vh;
   overflow-y: auto;
   box-shadow: 0 20px 40px rgba(0,0,0,0.15);
   padding: 1.5rem;

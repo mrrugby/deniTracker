@@ -12,9 +12,9 @@ export async function fetchCustomer(id) {
   return await res.json();
 }
 
-export async function addTransaction(customerId, type, payload) {
+export async function addTransaction(customer_id, type, payload) {
   const body = {
-    customer: customerId,
+    customer: customer_id,
     transaction_type: type,
     ...payload,
   };
@@ -72,9 +72,9 @@ export async function deleteItem(id) {
   if (!res.ok) throw new Error("Failed to delete item");
 }
 
-export async function addDebt(customerId, items) {
+export async function addDebt(customer_id, items) {
   const payload = {
-    customer: customerId,
+    customer: customer_id,
     transaction_type: "debt",
     items: items.map(i => ({
       item: i.id,
