@@ -1,3 +1,4 @@
+```vue
 <template>
   <!-- Top Navigation -->
   <TopNav />
@@ -115,6 +116,11 @@
     </button>
   </div>
 
+  <!-- TOAST (ADDED) -->
+  <div v-if="toastVisible" class="toast">
+    {{ toastMessage }}
+  </div>
+
   <!-- Bottom Navigation -->
   <BottomNav />
 </template>
@@ -168,7 +174,7 @@ async function loadCustomers() {
 }
 
 async function saveCustomer() {
-  if (!newCustomer.value.name.trim()) return alert("Customer name is required");
+  if (!newCustomer.value.name.trim()) return showToast("Customer name is required");
   await addCustomer(newCustomer.value);
   newCustomer.value = { name: "", phone: "" };
   showAddModal.value = false;
@@ -203,6 +209,22 @@ const totalPages = computed(() => Math.max(1, Math.ceil(filteredCustomers.value.
 const paginatedCustomers = computed(() => filteredCustomers.value.slice((page.value - 1) * pageSize, (page.value - 1) * pageSize + pageSize));
 function avatar(name) { return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=1763cf&color=fff`; }
 function goToCustomer(id) { router.push(`/customer/${id}`); }
+
+/* TOAST SYSTEM (ADDED) */
+const toastVisible = ref(false)
+const toastMessage = ref("")
+let toastTimer = null
+
+function showToast(message, duration = 1000) {
+  toastMessage.value = message
+  toastVisible.value = true
+
+  clearTimeout(toastTimer)
+
+  toastTimer = setTimeout(() => {
+    toastVisible.value = false
+  }, duration)
+}
 </script>
 
 <style scoped>
@@ -533,6 +555,28 @@ function goToCustomer(id) { router.push(`/customer/${id}`); }
   transform: scale(1.1);
 }
 
+/* TOAST (ADDED) */
+.toast {
+  position: fixed;
+  bottom: 6.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1e293b;
+  color: white;
+  padding: 0.9rem 1.4rem;
+  border-radius: 999px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+  z-index: 2000;
+  animation: toastIn 0.25s ease;
+}
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translate(-50%, 12px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
 /* Responsive */
 @media (min-width: 640px) {
   .controls {
@@ -547,3 +591,4 @@ function goToCustomer(id) { router.push(`/customer/${id}`); }
   }
 }
 </style>
+

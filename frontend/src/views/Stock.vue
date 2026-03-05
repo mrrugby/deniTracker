@@ -20,19 +20,20 @@
         <div class="item-info">
           <h3>{{ formatName(item.name) }}</h3>
           <p class="price">{{ Number(item.price).toLocaleString() }} Ksh</p>
+
           <span class="status" :class="{ inactive: !item.is_active }">
-            {{ item.is_active ? 'In Stock' : 'Out of Stock' }}
+            {{ item.is_active ? "In Stock" : "Out of Stock" }}
           </span>
         </div>
 
         <div class="actions">
           <button @click="openEditModal(item)" class="edit-btn">Edit</button>
-          <button @click="deleteItem(item.id)" class="delete-btn">Delete</button>
+          <button @click="confirmDelete(item)" class="delete-btn">Delete</button>
         </div>
       </div>
     </div>
 
-    <!-- Modal -->
+    <!-- Add/Edit Modal -->
     <teleport to="body">
       <div v-if="showModal" class="modal-backdrop" @click.self="closeModal">
         <div class="modal-content">
@@ -40,7 +41,7 @@
 
           <div class="input-group">
             <label>Product Name</label>
-            <input v-model="form.name" type="text" placeholder="e.g. Unga 2kg" required />
+            <input v-model="form.name" type="text" placeholder="e.g. Unga 2kg"/>
           </div>
 
           <div class="input-group">
@@ -51,15 +52,14 @@
               type="text"
               inputmode="decimal"
               placeholder="e.g. 185"
-              required
             />
           </div>
 
           <div class="input-group checkbox">
             <label class="checkbox-label">
-              <input type="checkbox" v-model="form.is_active" />
+              <input type="checkbox" v-model="form.is_active"/>
               <span class="checkmark"></span>
-              In Stock?
+              In Stock
             </label>
           </div>
 
@@ -67,11 +67,39 @@
             <button @click="saveItem" class="btn primary" :disabled="saving">
               {{ saving ? "Saving…" : "Save" }}
             </button>
-            <button @click="closeModal" class="btn cancel">Cancel</button>
+
+            <button @click="closeModal" class="btn cancel">
+              Cancel
+            </button>
           </div>
         </div>
       </div>
     </teleport>
+
+    <!-- Delete Confirmation -->
+    <teleport to="body">
+      <div v-if="showDeleteConfirm" class="modal-backdrop">
+        <div class="confirm-card">
+          <h3>Delete Product</h3>
+          <p>This product will be permanently removed.</p>
+
+          <div class="modal-actions">
+            <button class="btn danger" @click="deleteItemConfirmed">
+              Delete
+            </button>
+
+            <button class="btn cancel" @click="showDeleteConfirm=false">
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </teleport>
+
+    <!-- Toast -->
+    <div v-if="toast.show" class="toast" :class="toast.type">
+      {{ toast.message }}
+    </div>
   </div>
 
   <BottomNav />
@@ -81,7 +109,13 @@
 import { ref, reactive, onMounted } from "vue"
 import TopNav from "@/components/TopNav.vue"
 import BottomNav from "@/components/BottomNav.vue"
-import { fetchItems, addItem, updateItem, deleteItem as removeItem } from "@/services/local"
+
+import {
+  fetchItems,
+  addItem,
+  updateItem,
+  deleteItem as removeItem
+} from "@/services/local"
 
 const items = ref([])
 const loading = ref(false)
@@ -91,89 +125,196 @@ const showModal = ref(false)
 const editingItem = ref(null)
 const saving = ref(false)
 
-const form = reactive({ name: "", price: "", is_active: true })
+const showDeleteConfirm = ref(false)
+const deleteTarget = ref(null)
 
-// ---- Helpers ----
-function toTitleCase(str) {
+const form = reactive({ name:"", price:"", is_active:true })
+
+const toast = reactive({
+  show:false,
+  message:"",
+  type:"success"
+})
+
+function showToast(message,type="success"){
+  toast.message=message
+  toast.type=type
+  toast.show=true
+  setTimeout(()=>toast.show=false,1000)
+}
+
+function toTitleCase(str){
   return str
     .toLowerCase()
-    .replace(/(^|\s)\w/g, l => l.toUpperCase())
-    .replace(/\b(L|Kg|Litres|Ml|G)\b/gi, match => match.toUpperCase())
-}
-function formatName(name) { return toTitleCase(name) }
-function formatPrice() {
-  let v = String(form.price).replace(/[^\d.]/g, "")
-  const parts = v.split(".")
-  if (parts.length > 2) v = parts[0] + "." + parts.slice(1).join("")
-  if (parts[1]) parts[1] = parts[1].slice(0, 2)
-  form.price = parts.join(".")
+    .replace(/(^|\s)\w/g,l=>l.toUpperCase())
 }
 
-// ---- CRUD Functions ----
-async function loadItems() {
-  loading.value = true
-  error.value = null
-  try {
-    items.value = await fetchItems()
-  } catch (e) {
-    error.value = e.message || "Failed to load items"
-  } finally {
-    loading.value = false
+function formatName(name){return toTitleCase(name)}
+
+function formatPrice(){
+  let v=String(form.price).replace(/[^\d.]/g,"")
+  const parts=v.split(".")
+  if(parts.length>2) v=parts[0]+"."+parts.slice(1).join("")
+  if(parts[1]) parts[1]=parts[1].slice(0,2)
+  form.price=parts.join(".")
+}
+
+async function loadItems(){
+  loading.value=true
+  error.value=null
+
+  try{
+    items.value=await fetchItems()
+  }catch(e){
+    error.value=e.message||"Failed to load items"
+  }finally{
+    loading.value=false
   }
 }
 
-function openAddModal() {
-  editingItem.value = null
+function openAddModal(){
+  editingItem.value=null
   resetForm()
-  showModal.value = true
+  showModal.value=true
 }
-function openEditModal(item) {
-  editingItem.value = item
-  form.name = item.name
-  form.price = String(item.price)
-  form.is_active = item.is_active
-  showModal.value = true
-}
-function closeModal() { showModal.value = false; resetForm() }
-function resetForm() { form.name = ""; form.price = ""; form.is_active = true }
 
-async function saveItem() {
-  if (!form.name.trim()) return alert("Please enter a product name")
-  if (!form.price || isNaN(Number(form.price))) return alert("Please enter a valid price")
-  const payload = { name: form.name.trim(), price: Number(form.price), is_active: form.is_active }
-  
-  saving.value = true
-  try {
-    if (editingItem.value) {
-      await updateItem(editingItem.value.id, payload)
-      alert("Product updated")
-    } else {
+function openEditModal(item){
+  editingItem.value=item
+  form.name=item.name
+  form.price=String(item.price)
+  form.is_active=item.is_active
+  showModal.value=true
+}
+
+function closeModal(){
+  showModal.value=false
+  resetForm()
+}
+
+function resetForm(){
+  form.name=""
+  form.price=""
+  form.is_active=true
+}
+
+async function saveItem(){
+
+  if(!form.name.trim()){
+    showToast("Enter a product name","error")
+    return
+  }
+
+  if(!form.price || isNaN(Number(form.price))){
+    showToast("Enter a valid price","error")
+    return
+  }
+
+  const payload={
+    name:form.name.trim(),
+    price:Number(form.price),
+    is_active:form.is_active
+  }
+
+  saving.value=true
+
+  try{
+
+    if(editingItem.value){
+      await updateItem(editingItem.value.id,payload)
+      showToast("Product updated")
+    }else{
       await addItem(payload)
-      alert("Product added successfully")
+      showToast("Product added")
     }
+
     await loadItems()
     closeModal()
-  } catch (e) {
-    alert("Error: " + (e.message || "Something went wrong"))
-  } finally { saving.value = false }
-}
 
-async function deleteItem(id) {
-  if (!confirm("Delete this product permanently?")) return
-  try {
-    await removeItem(id)
-    await loadItems()
-    alert("Product deleted")
-  } catch (e) {
-    alert("Failed to delete")
+  }catch(e){
+    showToast("Something went wrong","error")
+  }finally{
+    saving.value=false
   }
 }
 
-// ---- On mount ----
-onMounted(() => { loadItems() })
+function confirmDelete(item){
+  deleteTarget.value=item
+  showDeleteConfirm.value=true
+}
+
+async function deleteItemConfirmed(){
+
+  if(!deleteTarget.value) return
+
+  try{
+    await removeItem(deleteTarget.value.id)
+    showDeleteConfirm.value=false
+    await loadItems()
+    showToast("Product deleted")
+  }catch{
+    showToast("Failed to delete","error")
+  }
+}
+
+onMounted(loadItems)
 </script>
 
 <style scoped>
+.toast {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #111827;
+  color: white;
+  padding: 0.8rem 1.2rem;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+  animation: toastSlide 0.25s ease;
+  z-index: 2000;
+}
+
+.toast.success{
+  background:#16a34a;
+}
+
+.toast.error{
+  background:#dc2626;
+}
+
+@keyframes toastIn{
+  from{opacity:0; transform:translate(-50%,20px)}
+  to{opacity:1; transform:translate(-50%,0)}
+}
+
+/* Confirm dialog */
+
+.confirm-card{
+  background:white;
+  padding:1.5rem;
+  border-radius:14px;
+  max-width:340px;
+  width:100%;
+  text-align:center;
+}
+
+.confirm-card h3{
+  margin-bottom:.5rem;
+}
+
+.confirm-card p{
+  color:#64748b;
+  margin-bottom:1rem;
+}
+
+.btn.danger{
+  background:#dc2626;
+  color:white;
+}
+
+
 .page {
   padding: 1rem;
   min-height: 100vh;

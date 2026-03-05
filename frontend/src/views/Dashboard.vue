@@ -158,7 +158,6 @@
           </div>
         </div>
 
-        <!-- Conditional Fields -->
         <div v-if="transaction.type === 'payment'">
           <div class="input-group">
             <label>Amount (Ksh)</label>
@@ -182,6 +181,11 @@
           <button @click="closeTransactionModal" class="btn cancel">Cancel</button>
         </div>
       </div>
+    </div>
+
+    <!-- TOAST -->
+    <div v-if="toastVisible" class="toast">
+      {{ toastMessage }}
     </div>
 
     <!-- Bottom Navigation -->
@@ -233,23 +237,13 @@ const selectedCustomerName = computed(() =>
   customers.value.find(c => c.id === transaction.value.customer_id)?.name || ""
 );
 
-/*
-|--------------------------------------------------------------------------
-| Sorting Ledger Transactions (Correct Field = date)
-|--------------------------------------------------------------------------
-*/
 const sortedTransactions = computed(() => {
   return [...transactions.value].sort(
     (a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime()
   );
 });
 
-/*
-|--------------------------------------------------------------------------
-| Dropdown Logic
-|--------------------------------------------------------------------------
-*/
-function selectCustomer(id, name) {
+function selectCustomer(id) {
   transaction.value.customer_id = id;
   showCustomerDropdown.value = false;
 }
@@ -267,16 +261,9 @@ function closeAllDropdowns(e) {
   }
 }
 
-/*
-|--------------------------------------------------------------------------
-| Data Loading
-|--------------------------------------------------------------------------
-*/
 async function loadData() {
   customers.value = await fetchCustomers();
-
   const totals = await calculateTotals();
-
   totalDebt.value = totals.totalDebt || 0;
   totalPayments.value = totals.totalPayments || 0;
 }
@@ -285,14 +272,9 @@ async function loadTransactions() {
   transactions.value = await fetchTransactions();
 }
 
-/*
-|--------------------------------------------------------------------------
-| Customer CRUD
-|--------------------------------------------------------------------------
-*/
 async function submitCustomer() {
   if (!newCustomer.value.name.trim())
-    return alert("Customer name is required.");
+    return showToast("Customer name is required.");
 
   await addCustomer({
     name: newCustomer.value.name.trim(),
@@ -305,20 +287,15 @@ async function submitCustomer() {
   await loadData();
 }
 
-/*
-|--------------------------------------------------------------------------
-| Transaction Submission (Ledger Safe)
-|--------------------------------------------------------------------------
-*/
 async function submitTransaction() {
   if (!transaction.value.customer_id)
-    return alert("Select a customer");
+    return showToast("Select a customer");
 
   if (!transaction.value.type)
-    return alert("Select transaction type");
+    return showToast("Select transaction type");
 
   if (!transaction.value.amount || transaction.value.amount <= 0)
-    return alert("Enter a valid amount");
+    return showToast("Enter a valid amount");
 
   const payload = {
     amount: Number(transaction.value.amount),
@@ -344,33 +321,68 @@ async function submitTransaction() {
   await loadTransactions();
 }
 
-/*
-|--------------------------------------------------------------------------
-| Navigation
-|--------------------------------------------------------------------------
-*/
 function goToCustomer(id) {
   if (id) router.push(`/customer/${id}`);
 }
 
-/*
-|--------------------------------------------------------------------------
-| Lifecycle
-|--------------------------------------------------------------------------
-*/
 onMounted(async () => {
   await loadData();
   await loadTransactions();
-
   document.addEventListener("click", closeAllDropdowns);
 });
 
 onUnmounted(() => {
   document.removeEventListener("click", closeAllDropdowns);
 });
+
+/* TOAST SYSTEM */
+
+const toastVisible = ref(false)
+const toastMessage = ref("")
+let toastTimer = null
+
+function showToast(message, duration = 1000) {
+  toastMessage.value = message
+  toastVisible.value = true
+
+  clearTimeout(toastTimer)
+
+  toastTimer = setTimeout(() => {
+    toastVisible.value = false
+  }, duration)
+}
 </script>
 
 <style scoped>
+
+
+.toast {
+  position: fixed;
+  bottom: 6.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1e293b;
+  color: white;
+  padding: 0.9rem 1.4rem;
+  border-radius: 999px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+  z-index: 2000;
+  animation: toastIn 0.25s ease;
+}
+
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 12px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
 .dashboard {
   font-family: "Inter", sans-serif;
   background: #f8fafc;

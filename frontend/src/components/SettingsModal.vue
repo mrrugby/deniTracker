@@ -5,44 +5,48 @@
         <h3>Settings</h3>
 
         <div class="settings-content">
+
           <!-- Storage Metrics -->
-<div class="card storage-box">
-  <h3>📊 Storage Usage</h3>
-
-  <p>
-    {{ formatBytes(usage) }} / {{ formatBytes(quota) }}
-  </p>
-
-  <div class="storage-bar">
-    <div
-      class="storage-fill"
-      :style="{ width: usagePercent + '%' }"
-    />
-  </div>
-
-  <small>{{ usagePercent }}% used</small>
-</div>
-
-          <!-- Danger Zone Card -->
           <div class="card storage-box">
-  <h3>ℹ️ About Debtly</h3>
-  <p>
-    Debtly stores all your customers, stock, and transaction data
-    securely on your device.<br> No data is sent to your external servers.
-  </p>
-</div>
+            <h3>📊 Storage Usage</h3>
 
-<!-- Danger Zone Card -->
-<div class="card danger storage-box">
-  <h3>🚨Data Reset</h3>
-  <p>
-    Resetting the app will permanently remove all records stored on this device.<br> This action cannot be undone.
-  </p>
+            <p>
+              {{ formatBytes(usage) }} / {{ formatBytes(quota) }}
+            </p>
 
-  <button class="btn primary" @click="showReset = true">
-    Delete Data
-  </button>
-</div>
+            <div class="storage-bar">
+              <div
+                class="storage-fill"
+                :style="{ width: usagePercent + '%' }"
+              />
+            </div>
+
+            <small>{{ usagePercent }}% used</small>
+          </div>
+
+          <!-- About -->
+          <div class="card storage-box">
+            <h3>ℹ️ About Debtly</h3>
+            <p>
+              Debtly stores all your customers, stock, and transaction data
+              securely on your device.<br>
+              No data is sent to external servers.
+            </p>
+          </div>
+
+          <!-- Danger Zone -->
+          <div class="card danger storage-box">
+            <h3>🚨 Data Reset</h3>
+            <p>
+              Resetting the app will permanently remove all records stored on this device.<br>
+              This action cannot be undone.
+            </p>
+
+            <button class="btn primary" @click="showReset = true">
+              Delete Data
+            </button>
+          </div>
+
         </div>
       </div>
     </div>
@@ -81,6 +85,13 @@
       </div>
     </div>
   </teleport>
+
+  <!-- Native Style Toast -->
+  <teleport to="body">
+    <div v-if="toast.show" class="toast">
+      {{ toast.message }}
+    </div>
+  </teleport>
 </template>
 
 <script setup lang="ts">
@@ -94,7 +105,6 @@ const usagePercent = computed(() => {
   return ((usage.value / quota.value) * 100).toFixed(1)
 })
 
-// props to control showing the modal from parent
 const props = defineProps<{
   show: boolean
 }>()
@@ -105,6 +115,28 @@ const emit = defineEmits<{
 
 const showReset = ref(false)
 const confirmationText = ref("")
+
+/* -------------------------
+   Native Toast
+-------------------------- */
+
+const toast = ref({
+  show: false,
+  message: ""
+})
+
+function showToast(message: string) {
+  toast.value.message = message
+  toast.value.show = true
+
+  setTimeout(() => {
+    toast.value.show = false
+  }, 1000)
+}
+
+/* -------------------------
+   Helpers
+-------------------------- */
 
 function formatBytes(bytes: number) {
   if (!bytes) return "0 B"
@@ -130,6 +162,10 @@ function closeReset() {
   confirmationText.value = ""
 }
 
+/* -------------------------
+   Reset App
+-------------------------- */
+
 function resetApp() {
   localStorage.clear()
 
@@ -141,8 +177,11 @@ function resetApp() {
     })
   }
 
-  alert("All data has been permanently deleted.")
-  location.reload()
+  showToast("All data has been permanently deleted.")
+
+  setTimeout(() => {
+    location.reload()
+  }, 1200)
 }
 </script>
 
@@ -173,6 +212,8 @@ color: #dc2626;
 font-size: 0.85rem;
 }
 
+/* Modal */
+
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -184,7 +225,6 @@ font-size: 0.85rem;
   backdrop-filter: blur(4px);
 }
 
-/* Modal content */
 .modal-content {
   background: white;
   border-radius: 1.25rem;
@@ -196,7 +236,6 @@ font-size: 0.85rem;
   box-shadow: 0 20px 40px rgba(0,0,0,0.15);
 }
 
-/* Header */
 .modal-content h3 {
   margin: 0 0 1rem;
   text-align: center;
@@ -205,14 +244,6 @@ font-size: 0.85rem;
   color: #1e293b;
 }
 
-/* Warning text */
-.warning {
-  color: #dc2626;
-  font-weight: 600;
-  margin-bottom: 0.75rem;
-}
-
-/* Input styling - matches Stock.vue */
 .modal-content input {
   width: 100%;
   padding: 0.9rem;
@@ -229,12 +260,6 @@ font-size: 0.85rem;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
 }
 
-.modal-content input::placeholder {
-  color: #94a3b8;
-  font-weight: 400;
-}
-
-/* Modal actions buttons - matches Stock.vue */
 .modal-actions {
   display: flex;
   gap: 1rem;
@@ -250,12 +275,10 @@ font-size: 0.85rem;
   border-radius: 0.75rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
 }
 
 .btn.primary:disabled {
   background: #93c5fd;
-  cursor: not-allowed;
 }
 
 .btn.cancel {
@@ -266,6 +289,36 @@ font-size: 0.85rem;
   color: #475569;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+}
+
+/* -------------------
+   Native Toast
+-------------------- */
+
+.toast {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #111827;
+  color: white;
+  padding: 0.8rem 1.2rem;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+  animation: toastSlide 0.25s ease;
+  z-index: 2000;
+}
+
+@keyframes toastSlide {
+  from {
+    transform: translate(-50%, 20px);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
 }
 </style>

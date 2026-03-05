@@ -167,6 +167,11 @@
 
     <!-- Bottom Navigation -->
     <BottomNav />
+
+    <!-- TOAST -->
+    <div v-if="toast.show" class="toast">
+      {{ toast.message }}
+    </div>
   </div>
 </template>
 
@@ -187,43 +192,125 @@ const showCustomerDropdown = ref(false);
 const showTypeDropdown = ref(false);
 
 const transaction = ref({ customer_id: "", type: "", amount: null, description: "" });
-const selectedCustomerName = computed(() => customers.value.find(c => c.id === transaction.value.customer_id)?.name || '');
+
+/* TOAST STATE */
+const toast = ref({
+  show: false,
+  message: ""
+})
+
+function showToast(message) {
+  toast.value.message = message
+  toast.value.show = true
+
+  setTimeout(() => {
+    toast.value.show = false
+  }, 2500)
+}
+
+const selectedCustomerName = computed(() =>
+  customers.value.find(c => c.id === transaction.value.customer_id)?.name || ''
+);
+
 const filteredTransactions = computed(() => {
   const q = searchQuery.value.toLowerCase();
   return transactions.value.filter(tx =>
-    tx.customer_name?.toLowerCase().includes(q) || tx.description?.toLowerCase().includes(q)
+    tx.customer_name?.toLowerCase().includes(q) ||
+    tx.description?.toLowerCase().includes(q)
   );
 });
 
-function goToCustomer(id) { if (id) router.push(`/customer/${id}`); }
+function goToCustomer(id) {
+  if (id) router.push(`/customer/${id}`);
+}
 
-async function loadCustomers() { customers.value = await fetchCustomers(); }
-async function loadTransactions() { transactions.value = await fetchTransactions(); }
+async function loadCustomers() {
+  customers.value = await fetchCustomers();
+}
+
+async function loadTransactions() {
+  transactions.value = await fetchTransactions();
+}
 
 async function submitTransaction() {
-  if (!transaction.value.customer_id || !transaction.value.type) return alert("Please fill all fields.");
-  await addTransaction(transaction.value.customer_id, transaction.value.type, { amount: transaction.value.amount, description: transaction.value.description });
-  showAddTransaction.value = false;
-  transaction.value = { customer_id: "", type: "", amount: null, description: "" };
-  await loadTransactions();
+  if (!transaction.value.customer_id || !transaction.value.type) {
+    showToast("Please fill all fields.")
+    return
+  }
+
+  await addTransaction(
+    transaction.value.customer_id,
+    transaction.value.type,
+    {
+      amount: transaction.value.amount,
+      description: transaction.value.description
+    }
+  )
+
+  showToast("Transaction saved")
+
+  showAddTransaction.value = false
+
+  transaction.value = {
+    customer_id: "",
+    type: "",
+    amount: null,
+    description: ""
+  }
+
+  await loadTransactions()
 }
 
 onMounted(async () => {
-  await loadCustomers();
-  await loadTransactions();
+  await loadCustomers()
+  await loadTransactions()
 
   const closeDropdowns = (e) => {
     if (!e.target.closest('.custom-select-wrapper')) {
-      showCustomerDropdown.value = false;
-      showTypeDropdown.value = false;
+      showCustomerDropdown.value = false
+      showTypeDropdown.value = false
     }
-  };
-  document.addEventListener('click', closeDropdowns);
-  onUnmounted(() => document.removeEventListener('click', closeDropdowns));
-});
+  }
+
+  document.addEventListener('click', closeDropdowns)
+
+  onUnmounted(() => {
+    document.removeEventListener('click', closeDropdowns)
+  })
+})
 </script>
 
 <style scoped>
+
+/* TOAST */
+.toast{
+position: fixed;
+bottom: 90px;
+left: 50%;
+transform: translateX(-50%);
+background: #111827;
+color: white;
+padding: 10px 18px;
+border-radius: 999px;
+font-size: 0.85rem;
+font-weight: 500;
+box-shadow: 0 8px 25px rgba(0,0,0,0.25);
+animation: toastIn 0.25s ease;
+z-index: 2000;
+}
+
+@keyframes toastIn{
+from{
+opacity:0;
+transform:translate(-50%,20px);
+}
+to{
+opacity:1;
+transform:translate(-50%,0);
+}
+}
+
+
 /* === ALL YOUR ORIGINAL STYLES (unchanged) === */
 .transactions-page {
   font-family: "Inter", sans-serif;
