@@ -9,8 +9,8 @@ export default defineConfig({
       registerType: "autoUpdate",
       includeAssets: ['favicon.ico', 'apple-touch-icon.png'],
       manifest: {
-        name: "DeniTracker",
-        short_name: "DeniTracker",
+        name: "Debtly",
+        short_name: "Debtly",
         description: "Offline debt tracker for small business owners",
         theme_color: "#2563eb", 
         background_color: "#ffffff",
