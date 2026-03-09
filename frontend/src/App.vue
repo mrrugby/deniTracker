@@ -1,47 +1,82 @@
 <template>
   <div id="app">
 
-    <TutorialModal
-    v-if="showTutorial"
-    @close="closeTutorial"
-  />
+    <AppSplash v-if="loading" />
+  
+    <div v-else>
 
-  <InstallPrompt
-    v-if="showInstall"
-    @install="promptInstall"
-  />
-    <router-view />
+      <TutorialModal
+        v-if="showTutorial"
+        @close="closeTutorial"
+      />
+      <InstallPrompt
+        v-if="showInstall"
+        @install="handleInstall"
+      />
+      <router-view />
+
+    </div>
+
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
-import TutorialModal from './components/TutorialModal.vue';
-import InstallPrompt from './components/InstallPrompt.vue';
-import { usePWAInstall } from './composables/usePWAInstall';
+import { ref, onMounted } from "vue"
 
+import TutorialModal from "./components/TutorialModal.vue"
+import InstallPrompt from "./components/InstallPrompt.vue"
+import AppSplash from "./components/AppSplash.vue"
+
+import { usePWAInstall } from "./composables/usePWAInstall"
+
+const loading = ref(true)
 const showTutorial = ref(false)
 const showInstall = ref(false)
 
 const { deferredPrompt, promptInstall } = usePWAInstall()
 
-onMounted(() =>{
+onMounted(() => {
+
+  // Splash screen timer
+  setTimeout(() => {
+    loading.value = false
+  }, 1200)
+
   const seenTutorial = localStorage.getItem("debtlyTutorialSeen")
-  if(!seenTutorial){
-    showTutorial.value = true
+
+  if (!seenTutorial) {
+    setTimeout(() => {
+      showTutorial.value = true
+    }, 1300)
   }
+
 })
 
-const closeTutorial = () =>{
+
+const closeTutorial = () => {
+
   localStorage.setItem("debtlyTutorialSeen", "true")
+
   showTutorial.value = false
 
-  if (deferredPrompt.value){
+  const installSeen = localStorage.getItem("debtlyInstallSeen")
+
+  if (deferredPrompt.value && !installSeen) {
     showInstall.value = true
   }
+
 }
 
 
+const handleInstall = async () => {
+
+  await promptInstall()
+
+  localStorage.setItem("debtlyInstallSeen", "true")
+
+  showInstall.value = false
+
+}
 </script>
 
 <style>
