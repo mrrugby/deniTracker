@@ -40,6 +40,8 @@ const closeTutorial = () =>{
     showInstall.value = true
   }
 }
+
+
 </script>
 
 <style>
