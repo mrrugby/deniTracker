@@ -19,14 +19,25 @@ defineEmits(['back']);
 
 <template>
   <header class="app-header">
+    <p class="brand">Debtly</p>
+
     <div class="header-row">
-      <button v-if="canGoBack" type="button" class="icon-button" @click="$emit('back')">
-        &lt;
+      <button
+        v-if="canGoBack"
+        type="button"
+        class="icon-button"
+        @click="$emit('back')"
+      >
+        ←
       </button>
-      <div>
+
+      <div class="title-group">
         <h1>{{ title }}</h1>
-        <p v-if="subtitle" class="subtitle">{{ subtitle }}</p>
+        <p v-if="subtitle" class="subtitle">
+          {{ subtitle }}
+        </p>
       </div>
+
       <slot name="action" />
     </div>
   </header>
@@ -44,19 +55,24 @@ defineEmits(['back']);
   backdrop-filter: blur(14px);
 }
 
+.brand {
+  margin: 0 0 0.5rem;
+  color: var(--brand);
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .header-row {
   display: flex;
   align-items: center;
   gap: 0.9rem;
 }
 
-.eyebrow {
-  margin: 0 0 0.2rem;
-  color: var(--accent);
-  font-size: 0.82rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+.title-group {
+  flex: 1;
+  min-width: 0;
 }
 
 h1 {
