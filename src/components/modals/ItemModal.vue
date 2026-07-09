@@ -46,7 +46,7 @@ function handleSubmit() {
   <BaseModal
     :open="open"
     :title="item?.id ? 'Edit item' : 'Add item'"
-    description="Stock items help you record debt faster from product selections."
+    description="Adding stock items helps record debt faster."
     @close="$emit('close')"
   >
     <form class="form-grid" @submit.prevent="handleSubmit">

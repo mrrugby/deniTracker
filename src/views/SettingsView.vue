@@ -102,7 +102,7 @@ onMounted(() => {
           <strong>{{ storageUsage }}</strong>
         </article>
         <article class="settings-stat">
-          <span>Available quota</span>
+          <span>Available space</span>
           <strong>{{ storageQuota }}</strong>
         </article>
       </div>

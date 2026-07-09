@@ -167,7 +167,7 @@ function handleSubmit() {
             :class="{ active: form.debt_mode === 'items' }"
             @click="form.debt_mode = 'items'"
           >
-            Item based
+            Choose Item
           </button>
         </div>
 
@@ -187,9 +187,9 @@ function handleSubmit() {
           <div class="item-builder__header">
             <div>
               <h3>Selected items</h3>
-              <p>Add one or more products and quantities.</p>
+              <p>Add one or more products.</p>
             </div>
-            <button type="button" class="ghost-button" @click="addItemLine">Add line</button>
+            <button type="button" class="ghost-button" @click="addItemLine">Add Item</button>
           </div>
 
           <div v-if="!itemOptions.length" class="empty-note">
@@ -246,7 +246,7 @@ function handleSubmit() {
 
       <div class="modal-actions">
         <button type="button" class="ghost-button" @click="$emit('close')">Cancel</button>
-        <button type="submit" class="primary-button">Save transaction</button>
+        <button type="submit" class="primary-button">Save</button>
       </div>
     </form>
   </BaseModal>

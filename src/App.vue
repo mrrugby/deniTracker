@@ -24,7 +24,7 @@ const currentTitle = computed(() => {
 
 const currentSubtitle = computed(() => {
   if (route.name === 'customer-profile') return 'Customer Transactions History';
-  if (route.name === 'dashboard') return isOffline.value ? 'Offline mode active' : 'Ready for today';
+  if (route.name === 'dashboard') return isOffline.value ? 'Offline mode active' : '';
 });
 
 const canGoBack = computed(() => route.name === 'customer-profile');
@@ -55,15 +55,17 @@ function handleOnline() {
 function handleOffline() {
   isOffline.value = true;
 }
+function handleAppInstalled() {
+
+  showInstallBanner.value = false;
+  installPrompt.value = null;
+}
 
 onMounted(async () => {
   await ledger.init();
 
   window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-  window.addEventListener(
-    'appinstalled',
-    handleAppInstalled
-  );
+  window.addEventListener('appinstalled', handleAppInstalled);
 
   window.addEventListener('online', handleOnline);
   window.addEventListener('offline', handleOffline);
@@ -71,10 +73,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-  window.removeEventListener(
-    'appinstalled',
-    handleAppInstalled
-  );
+  window.addEventListener('appinstalled', handleAppInstalled);
   
   window.removeEventListener('online', handleOnline);
   window.removeEventListener('offline', handleOffline);

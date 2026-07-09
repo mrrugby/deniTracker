@@ -79,7 +79,7 @@ async function handleAddTransaction(payload) {
     <section class="section-card">
       <div class="section-head">
         <div>
-          <p class="section-kicker">Need attention</p>
+          <p class="section-kicker">Needs attention</p>
           <h2>Highest balances</h2>
         </div>
       </div>

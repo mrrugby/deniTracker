@@ -80,7 +80,7 @@ async function handleDelete() {
       <div class="section-head">
         <div>
           <p class="section-kicker">Stock</p>
-          <h2>Manage item pricing</h2>
+          <h2>Manage Stock & Prices</h2>
         </div>
         <button type="button" class="primary-button" @click="openAddItem">Add item</button>
       </div>
@@ -108,7 +108,7 @@ async function handleDelete() {
     <EmptyState
       v-else
       title="No stock items yet"
-      description="Stock items make debt entry faster by calculating totals from quantity and price."
+      description="Stock items make entiries faster by calculating totals from quantity and price."
     >
       <button type="button" class="primary-button" @click="openAddItem">Add item</button>
     </EmptyState>
