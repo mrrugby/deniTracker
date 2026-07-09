@@ -9,26 +9,22 @@ import { useLedger } from './composables/useLedger';
 const route = useRoute();
 const router = useRouter();
 const ledger = useLedger();
-const installPrompt = ref(null);
+
+const installPrompt = ref(null); 
 const showInstallBanner = ref(false);
+
 const isOffline = ref(!navigator.onLine);
 
 const currentTitle = computed(() => {
   if (route.name === 'customer-profile') {
     return ledger.findCustomerById(route.params.id)?.name || 'Customer profile';
   }
-
   return route.meta.title || 'Debtly';
 });
 
 const currentSubtitle = computed(() => {
-  if (route.name === 'customer-profile') {
-    return 'Customer Transactions History';
-  }
-
-  if (route.name === 'dashboard') {
-    return isOffline.value ? 'Offline mode active' : 'Ready for today';
-  }
+  if (route.name === 'customer-profile') return 'Customer Transactions History';
+  if (route.name === 'dashboard') return isOffline.value ? 'Offline mode active' : 'Ready for today';
 });
 
 const canGoBack = computed(() => route.name === 'customer-profile');
@@ -40,11 +36,15 @@ function handleBeforeInstallPrompt(event) {
 }
 
 async function installApp() {
-  if (!installPrompt.value) {
-    return;
-  }
+  if (!installPrompt.value) return;
 
-  await installPrompt.value.prompt();
+  
+  installPrompt.value.prompt();
+
+  // Wait for the user’s choice
+  const { outcome } = await installPrompt.value.userChoice;
+  console.log('Install outcome:', outcome);
+
   showInstallBanner.value = false;
   installPrompt.value = null;
 }
@@ -52,7 +52,6 @@ async function installApp() {
 function handleOnline() {
   isOffline.value = false;
 }
-
 function handleOffline() {
   isOffline.value = true;
 }
@@ -61,6 +60,11 @@ onMounted(async () => {
   await ledger.init();
 
   window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+  window.addEventListener('appinstalled', () => {
+    showInstallBanner.value = false;
+    installPrompt.value = null;
+  });
+
   window.addEventListener('online', handleOnline);
   window.addEventListener('offline', handleOffline);
 });
