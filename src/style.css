@@ -220,11 +220,17 @@ select:focus {
   color: var(--brand);
   font-weight: 800;
 }
-
 .secondary-button {
-  background: rgba(255, 255, 255, 0.14);
-  color: white;
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: var(--brand);
+  color: #f6f0e4;
+  font-weight: 800;
+}
+
+.install-banner {
+  background:  #f6f0e4;
+  color: #17443b;
+  border: none;
+  font-weight: 800;
 }
 
 .section-card .secondary-button {
