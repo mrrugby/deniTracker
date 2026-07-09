@@ -4,7 +4,9 @@ import { useRoute, useRouter } from 'vue-router';
 import AppHeader from './components/AppHeader.vue';
 import BaseToastStack from './components/BaseToastStack.vue';
 import BottomNav from './components/BottomNav.vue';
+import WhatsNewModal from './components/modals/WhatsNewModal.vue';
 import { useLedger } from './composables/useLedger';
+import { APP_VERSION, RELEASE_NOTES } from './config/appVersion.js';
 
 const route = useRoute();
 const router = useRouter();
@@ -12,6 +14,7 @@ const ledger = useLedger();
 
 const installPrompt = ref(null); 
 const showInstallBanner = ref(false);
+const showWhatsNew = ref(false);
 
 const isOffline = ref(!navigator.onLine);
 
@@ -60,10 +63,22 @@ function handleAppInstalled() {
   showInstallBanner.value = false;
   installPrompt.value = null;
 }
+function closeWhatsNew() {
+  localStorage.setItem(
+    'seen-version',
+    APP_VERSION
+  )
+
+  showWhatsNew.value = false
+}
 
 onMounted(async () => {
   await ledger.init();
+  const seenVersion = localStorage.getItem('seen-version');
 
+  if (seenVersion !==APP_VERSION){
+    showWhatsNew.value = true
+  }
   window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
   window.addEventListener('appinstalled', handleAppInstalled);
 
@@ -107,6 +122,7 @@ onBeforeUnmount(() => {
       <RouterView v-else />
     </main>
 
+    <WhatsNewModal :show="showWhatsNew" :version="APP_VERSION" :notes="RELEASE_NOTES[APP_VERSION]" @close="closeWhatsNew" />
     <BottomNav />
     <BaseToastStack />
   </div>

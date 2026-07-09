@@ -6,4 +6,10 @@ import './style.css';
 
 registerSW({ immediate: true });
 
+export const updateSW = registerSW({
+  immediate: true,
+  onNeedRefresh() {
+  }
+})
+
 createApp(App).use(router).mount('#app');
