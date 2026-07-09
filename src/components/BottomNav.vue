@@ -2,16 +2,26 @@
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 
+import {
+  Home,
+  Users,
+  Package,
+  Settings 
+} from 'lucide-vue-next';
 const route = useRoute();
 
 const navItems = [
-  { label: 'Home', route: { name: 'dashboard' }, icon: 'o' },
-  { label: 'Customers', route: { name: 'customers' }, icon: 'u' },
-  { label: 'Stock', route: { name: 'stock' }, icon: '#' },
-  { label: 'Settings', route: { name: 'settings' }, icon: '=' }
+  { label: 'Home', route: { name: 'dashboard' }, icon: Home },
+  { label: 'Customers', route: { name: 'customers' }, icon: Users },
+  { label: 'Stock', route: { name: 'stock' }, icon: Package },
+  { label: 'Settings', route: { name: 'settings' }, icon: Settings }
 ];
 
-const activeRouteName = computed(() => route.name === 'customer-profile' ? 'customers' : route.name);
+const activeRouteName = computed(() => 
+route.name === 'customer-profile' 
+? 'customers' 
+: route.name
+);
 </script>
 
 <template>
@@ -23,7 +33,7 @@ const activeRouteName = computed(() => route.name === 'customer-profile' ? 'cust
       class="nav-link"
       :class="{ active: activeRouteName === item.route.name }"
     >
-      <span class="nav-icon">{{ item.icon }}</span>
+      <span class="nav-icon"><component :is="item.icon" /></span>
       <span>{{ item.label }}</span>
     </RouterLink>
   </nav>
