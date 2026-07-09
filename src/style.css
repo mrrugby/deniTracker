@@ -24,6 +24,12 @@
 
 * {
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-overflow-scrolling: touch;
+}
+html,
+body {
+  overscroll-behavior: none;
 }
 
 html,
@@ -44,7 +50,27 @@ select {
   font: inherit;
 }
 
+button,
+a {
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+
+button,
+.nav-link {
+  transition: transform 0.12s ease, opacity 0.12s ease;
+}
+
+button:active,
+.nav-link:active {
+  transform: scale(0.96);
+  opacity: 0.8;
+}
+
 button {
+  appearance: none;
+  border: none;
+  font: inherit;
   cursor: pointer;
 }
 
