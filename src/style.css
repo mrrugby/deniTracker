@@ -1,14 +1,14 @@
 @font-face {
   font-family: "Trebuchet MS";
   src: url("/assets/fonts/trebuc.woff") format("woff");
-  font-weight: 500;
+  font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
 :root {
   font-family: "Trebuchet MS";
   line-height: 1.5;
-  font-weight: 500;
+  font-weight: 400;
   color: #16332d;
   background:
     radial-gradient(circle at top, rgba(203, 124, 71, 0.16), transparent 28%),
