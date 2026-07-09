@@ -60,10 +60,10 @@ onMounted(async () => {
   await ledger.init();
 
   window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-  window.addEventListener('appinstalled', () => {
-    showInstallBanner.value = false;
-    installPrompt.value = null;
-  });
+  window.addEventListener(
+    'appinstalled',
+    handleAppInstalled
+  );
 
   window.addEventListener('online', handleOnline);
   window.addEventListener('offline', handleOffline);
@@ -71,6 +71,11 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+  window.removeEventListener(
+    'appinstalled',
+    handleAppInstalled
+  );
+
   window.removeEventListener('online', handleOnline);
   window.removeEventListener('offline', handleOffline);
 });
@@ -92,7 +97,20 @@ onBeforeUnmount(() => {
           <p class="section-kicker">Install Debtly</p>
           <h2>Use it like a native app on your phone.</h2>
         </div>
-        <button type="button" class="secondary-button" @click="installApp">Install</button>
+        <button
+  type="button"
+  style="
+    display:block;
+    background:#17443b;
+    color:white;
+    padding:12px 20px;
+    border-radius:8px;
+    z-index:9999;
+  "
+  @click="installApp"
+>
+  Install
+</button>
       </section>
 
       <section v-if="!ledger.isReady.value" class="section-card">
